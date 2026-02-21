@@ -22,18 +22,18 @@
         
         section { display: none; }
         section.active { display: block; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         
         .card { background: var(--card); border: 1px solid #2a2a2a; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
         input, select, textarea { background: #1a1a1a !important; border: 1px solid #333 !important; color: white !important; padding: 10px; border-radius: 8px; width: 100%; outline: none; font-size: 13px; margin-top: 5px; }
-        label { font-size: 10px; text-transform: uppercase; color: #666; font-weight: bold; }
+        label { font-size: 10px; text-transform: uppercase; color: #666; font-weight: bold; margin-top: 10px; display: block; }
 
-        .btn-save { background: var(--gold); color: black; font-weight: bold; padding: 12px; border-radius: 10px; cursor: pointer; width: 100%; transition: 0.3s; text-transform: uppercase; font-size: 11px; text-align: center; }
+        .btn-save { background: var(--gold); color: black; font-weight: bold; padding: 12px; border-radius: 10px; cursor: pointer; width: 100%; transition: 0.3s; text-transform: uppercase; font-size: 11px; text-align: center; margin-top: 20px; }
         
-        /* Estilos de Impressão */
         @media print {
             body * { visibility: hidden; }
-            #printArea, #printArea * { visibility: visible; }
-            #printArea { position: absolute; left: 0; top: 0; width: 100%; color: black !important; background: white !important; padding: 20px; }
+            #modalRomaneio, #modalRomaneio *, #printArea, #printArea * { visibility: visible; }
+            #modalRomaneio { position: absolute; left: 0; top: 0; width: 100%; background: white; }
             .no-print { display: none !important; }
         }
     </style>
@@ -44,11 +44,11 @@
     <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
         <h1 class="serif text-2xl text-gold">Luary <span class="text-white text-[12px]">Admin</span></h1>
         <nav class="flex gap-4 md:gap-8 overflow-x-auto pb-2 w-full md:w-auto">
-            <button onclick="tab('pedidos')" class="active">PEDIDOS</button>
-            <button onclick="tab('produtos')">PRODUTOS</button>
-            <button onclick="tab('categorias')">CATEGORIAS</button>
-            <button onclick="tab('promo')">PROMOÇÕES</button>
-            <button onclick="tab('empresa')">EMPRESA</button>
+            <button onclick="tab('pedidos')" id="btn-pedidos" class="active">PEDIDOS</button>
+            <button onclick="tab('produtos')" id="btn-produtos">PRODUTOS</button>
+            <button onclick="tab('categorias')" id="btn-categorias">CATEGORIAS</button>
+            <button onclick="tab('promo')" id="btn-promo">PROMOÇÕES</button>
+            <button onclick="tab('empresa')" id="btn-empresa">EMPRESA</button>
         </nav>
     </div>
 </header>
@@ -57,9 +57,9 @@
 
     <section id="pedidos" class="active">
         <div class="card">
-            <div class="flex justify-between items-center mb-6 text-gold">
-                <h2 class="serif text-xl text-white">Gestão de Pedidos</h2>
-                <span id="badgePedidos" class="bg-gold/10 text-[10px] px-3 py-1 rounded-full font-bold border border-gold/20">0 TOTAL</span>
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="serif text-xl">Gestão de Pedidos</h2>
+                <span id="badgePedidos" class="bg-gold/10 text-gold text-[10px] px-3 py-1 rounded-full font-bold border border-gold/20">0 TOTAL</span>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-[11px]">
@@ -79,27 +79,62 @@
         </div>
     </section>
 
-    <section id="promo">
-        <div class="card max-w-2xl mx-auto">
-            <h2 class="serif text-xl mb-6">Configurar Promoções</h2>
-            <div class="p-4 bg-gold/5 border border-gold/20 rounded-xl mb-8 flex justify-between items-center">
-                <div>
-                    <h3 class="text-xs font-bold text-gold">Banner do Topo</h3>
-                    <p class="text-[9px] text-gray-400">Ativa a faixa promocional no cabeçalho do site.</p>
-                </div>
-                <button id="btnStatusPromo" onclick="toggleStatusPromo()" class="bg-gray-800 px-6 py-2 rounded-lg text-[10px] font-bold">CARREGANDO...</button>
+    <section id="produtos">
+        <div class="card">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="serif text-xl">Produtos</h2>
+                <button onclick="abrirModalProduto()" class="bg-gold text-black px-4 py-2 rounded-lg text-[10px] font-bold">NOVO PRODUTO</button>
             </div>
-            <div id="configPromos" class="space-y-6"></div>
-            <button onclick="salvarPromos()" class="btn-save mt-10">Aplicar Todas as Promoções</button>
+            <div id="listaProdutos" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
         </div>
     </section>
 
-    </main>
+    <section id="categorias">
+        <div class="card max-w-2xl mx-auto">
+            <h2 class="serif text-xl mb-6">Categorias</h2>
+            <div class="flex gap-2 mb-6">
+                <input type="text" id="novaCat" placeholder="Nome da Categoria...">
+                <button onclick="addCategoria()" class="bg-gold text-black px-6 rounded-lg font-bold text-[10px]">ADD</button>
+            </div>
+            <div id="listaCategorias" class="space-y-2"></div>
+        </div>
+    </section>
+
+    <section id="promo">
+        <div class="card max-w-2xl mx-auto">
+            <h2 class="serif text-xl mb-6">Banner Promocional</h2>
+            <div class="p-4 bg-gold/10 border border-gold/20 rounded-xl mb-6">
+                <label>Texto do Banner</label>
+                <input type="text" id="promoTexto" placeholder="Ex: FRETE GRÁTIS EM COMPRAS ACIMA DE R$ 150">
+                <label>Status do Banner</label>
+                <select id="promoAtiva">
+                    <option value="true">ATIVADO</option>
+                    <option value="false">DESATIVADO</option>
+                </select>
+                <button onclick="salvarBanner()" class="btn-save">Salvar Configuração</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="empresa">
+        <div class="card max-w-2xl mx-auto">
+            <h2 class="serif text-xl mb-6">Dados da Loja</h2>
+            <label>Nome da Empresa</label>
+            <input type="text" id="empNome">
+            <label>WhatsApp (Link ou Número)</label>
+            <input type="text" id="empWhats">
+            <label>Endereço / Cidade</label>
+            <input type="text" id="empEnd">
+            <button onclick="salvarEmpresa()" class="btn-save">Atualizar Dados</button>
+        </div>
+    </section>
+
+</main>
 
 <div id="modalRomaneio" class="fixed inset-0 bg-black/90 z-[100] hidden flex items-center justify-center p-4">
-    <div class="bg-white text-black w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl">
+    <div class="bg-white text-black w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl overflow-y-auto max-h-[90vh]">
         <div id="printArea" class="p-10"></div>
-        <div class="p-4 bg-gray-100 flex gap-2 no-print">
+        <div class="p-4 bg-gray-100 flex gap-2 no-print sticky bottom-0">
             <button onclick="window.print()" class="flex-1 bg-black text-white py-3 rounded-lg font-bold uppercase text-[10px]">Imprimir Agora</button>
             <button onclick="document.getElementById('modalRomaneio').classList.add('hidden')" class="flex-1 border py-3 rounded-lg font-bold uppercase text-[10px]">Fechar</button>
         </div>
@@ -114,18 +149,22 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-const fM = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fM = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+// --- NAVEGAÇÃO ---
 function tab(id) {
     document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
     document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-    if(event) event.target.classList.add('active');
+    document.getElementById(id).classList.add('active');
+    document.getElementById('btn-' + id).classList.add('active');
+
     if(id === 'pedidos') listarPedidos();
-    if(id === 'promo') carregarPromos();
+    if(id === 'produtos') listarProdutos();
+    if(id === 'categorias') listarCategorias();
+    if(id === 'empresa') carregarEmpresa();
 }
 
-// --- LISTAGEM DE PEDIDOS ---
+// --- MÓDULO PEDIDOS ---
 function listarPedidos() {
     db.ref('orders').on('value', snap => {
         const peds = snap.val() || {};
@@ -138,7 +177,7 @@ function listarPedidos() {
             const p = peds[id];
             tabela.innerHTML += `
             <tr class="border-b border-white/5">
-                <td class="py-4"><b>${p.cliente.nome}</b><br><span class="text-gray-500">${p.data}</span></td>
+                <td class="py-4"><b>${p.cliente?.nome || '---'}</b><br><span class="text-gray-400">${p.data || ''}</span></td>
                 <td>${p.itens?.length || 0} un.</td>
                 <td class="text-gold font-bold">${fM(p.total || 0)}</td>
                 <td>
@@ -149,8 +188,8 @@ function listarPedidos() {
                     </select>
                 </td>
                 <td class="text-right">
-                    <button onclick="romaneioSimples('${id}')" class="bg-blue-600/20 text-blue-400 px-2 py-1 rounded text-[9px] font-bold mr-1">SIMPLES</button>
-                    <button onclick="romaneioCompleto('${id}')" class="bg-green-600/20 text-green-400 px-2 py-1 rounded text-[9px] font-bold">FINANCEIRO</button>
+                    <button onclick="imprimirRomaneio('${id}', 1)" class="bg-blue-600/20 text-blue-400 px-2 py-1 rounded text-[9px] font-bold mr-1">SIMPLES</button>
+                    <button onclick="imprimirRomaneio('${id}', 2)" class="bg-green-600/20 text-green-400 px-2 py-1 rounded text-[9px] font-bold">FINANCEIRO</button>
                 </td>
                 <td class="text-right">
                     <button onclick="removerPedido('${id}')" class="text-red-500 font-bold ml-4">×</button>
@@ -160,140 +199,105 @@ function listarPedidos() {
     });
 }
 
+// --- MÓDULO PRODUTOS ---
+function listarProdutos() {
+    db.ref('products').on('value', snap => {
+        const prod = snap.val() || {};
+        const area = document.getElementById('listaProdutos');
+        area.innerHTML = '';
+        Object.keys(prod).forEach(id => {
+            const i = prod[id];
+            area.innerHTML += `
+            <div class="card p-2 text-center relative group">
+                <img src="${i.image?.split(',')[0]}" class="w-full h-32 object-contain rounded-lg mb-2">
+                <p class="text-[10px] font-bold truncate">${i.name}</p>
+                <p class="text-gold text-[11px] font-bold">${fM(i.price)}</p>
+                <button onclick="removerProd('${id}')" class="absolute top-2 right-2 bg-red-600 text-white w-6 h-6 rounded-full text-xs opacity-0 group-hover:opacity-100 transition">×</button>
+            </div>`;
+        });
+    });
+}
+
+// --- MÓDULO CATEGORIAS ---
+function listarCategorias() {
+    db.ref('categories').on('value', snap => {
+        const cat = snap.val() || {};
+        const area = document.getElementById('listaCategorias');
+        area.innerHTML = '';
+        Object.keys(cat).forEach(id => {
+            area.innerHTML += `
+            <div class="flex justify-between items-center bg-white/5 p-3 rounded-lg border border-white/5">
+                <span class="text-xs font-bold">${cat[id].name}</span>
+                <button onclick="removerCat('${id}')" class="text-red-500 text-xs font-bold">EXCLUIR</button>
+            </div>`;
+        });
+    });
+}
+function addCategoria() {
+    const name = document.getElementById('novaCat').value;
+    if(name) db.ref('categories').push({name}).then(() => document.getElementById('novaCat').value = '');
+}
+function removerCat(id) { if(confirm("Remover categoria?")) db.ref('categories/'+id).remove(); }
+
+// --- MÓDULO EMPRESA ---
+function carregarEmpresa() {
+    db.ref('settings/empresa').once('value', snap => {
+        const e = snap.val() || {};
+        document.getElementById('empNome').value = e.nome || '';
+        document.getElementById('empWhats').value = e.whats || '';
+        document.getElementById('empEnd').value = e.end || '';
+    });
+}
+function salvarEmpresa() {
+    const dados = {
+        nome: document.getElementById('empNome').value,
+        whats: document.getElementById('empWhats').value,
+        end: document.getElementById('empEnd').value
+    };
+    db.ref('settings/empresa').set(dados).then(() => alert("Dados Atualizados!"));
+}
+
+// --- MÓDULO ROMANEIO ---
 function imprimirRomaneio(id, tipo) {
     db.ref('orders/' + id).once('value', sPed => {
         const p = sPed.val();
-        if (!p) return alert("Pedido não encontrado!");
-
         db.ref('settings/empresa').once('value', sEmp => {
             const emp = sEmp.val() || { nome: "Luary Shop", whats: "---" };
             const itens = Array.isArray(p.itens) ? p.itens : Object.values(p.itens || {});
-            
-            // Definições de Tipo de Romaneio
-            const isFin = [2, 3, 5, 6].includes(tipo); // Com valores financeiros
-            const comFoto = [3, 6].includes(tipo);    // Com foto do produto
-            const emGrid = tipo >= 4;                  // Layout em Grid (Cartões)
-
-            // Cálculos Financeiros
-            const subtotal = itens.reduce((acc, i) => acc + ((Number(i.price) || 0) * (Number(i.quantidade) || 0)), 0);
-            const descPromo = Number(p.descontoPromo || 0);
-            const descPix = Number(p.descontoPix || 0);
-            const frete = Number(p.frete || 0);
-            const totalFinal = subtotal - descPromo - descPix + frete;
+            const isFin = (tipo === 2); 
+            const total = Number(p.total || 0);
 
             let html = `
-            <div style="padding:8mm; font-family:'Inter', Arial, sans-serif; color:#000; background:#fff; min-height:280mm;">
-                <div style="text-align:center; border-bottom: 3px solid #d4af37; padding-bottom: 10px; margin-bottom: 20px;">
-                    <h1 style="margin:0; font-size:28px; text-transform:uppercase; letter-spacing:4px; color:#000;">${emp.nome}</h1>
-                    <div style="font-size:10px; font-weight:bold; color: #666; text-transform:uppercase; letter-spacing:2px;">
-                        Mimos e Personalizados • WhatsApp: ${emp.whats}
-                    </div>
+            <div style="font-family:Arial; color:#000;">
+                <div style="text-align:center; border-bottom: 2px solid #d4af37; padding-bottom:10px; margin-bottom:15px;">
+                    <h1 style="margin:0;">${emp.nome}</h1>
+                    <p style="font-size:10px;">${emp.whats}</p>
                 </div>
-
-                <table style="width:100%; border-collapse: separate; border-spacing: 8px 0; margin-bottom:20px;">
-                    <tr>
-                        <td style="width:50%; border: 1px solid #eee; border-radius: 12px; padding:12px; vertical-align:top; font-size:11px; line-height:1.4; background:#f9f9f9;">
-                            <b style="color:#d4af37; font-size:9px; text-transform:uppercase; display:block; margin-bottom:4px;">Cliente</b>
-                            <b style="font-size:13px;">${p.cliente?.nome || '---'}</b><br>
-                            WhatsApp: ${p.cliente?.whats || p.cliente?.telefone || '---'}
-                        </td>
-                        <td style="width:50%; border: 1px solid #eee; border-radius: 12px; padding:12px; vertical-align:top; font-size:11px; line-height:1.4; background:#f9f9f9;">
-                            <b style="color:#d4af37; font-size:9px; text-transform:uppercase; display:block; margin-bottom:4px;">Endereço de Entrega</b>
-                            <b>${p.endereco?.rua || 'Retirada'}, ${p.endereco?.numero || ''}</b><br>
-                            ${p.endereco?.bairro || ''} - ${p.endereco?.cidade || ''}/${p.endereco?.uf || ''}<br>
-                            CEP: ${p.endereco?.cep || '---'}
-                        </td>
-                    </tr>
-                </table>`;
-
-            if (emGrid) {
-                // MODELO GRID (CARTÕES DE PRODUTO)
-                html += `<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">`;
-                itens.forEach(i => {
-                    html += `
-                    <div style="border: 1px solid #eee; border-radius: 12px; padding: 10px; background:#fff; display: flex; flex-direction: column; justify-content: space-between; page-break-inside: avoid; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-                        <div>
-                            ${comFoto && i.image ? `<img src="${i.image.split(',')[0]}" style="width: 100%; height: 90px; object-fit: contain; margin-bottom: 8px; border-radius: 8px;">` : ''}
-                            <div style="font-size: 11px; font-weight: bold; color:#000; text-transform: uppercase; line-height:1.2;">${i.name || ''}</div>
-                            <div style="font-size: 9px; color: #888; margin-top: 4px;">Qtd: <b>${i.quantidade}</b></div>
-                        </div>
-                        <div style="margin-top: 8px; background: #fdfaf0; padding: 6px; border-radius: 8px; display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size: 9px; font-weight: bold; color:#d4af37;">SUBTOTAL:</span>
-                            ${isFin ? `<span style="font-size: 11px; font-weight: 800; color:#000;">${(i.price * i.quantidade).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>` : '<span style="font-size:10px;">---</span>'}
-                        </div>
-                    </div>`;
-                });
-                html += `</div>`;
-            } else {
-                // MODELO TABELA (LISTA COMPACTA)
-                html += `
-                <table style="width:100%; border-collapse:collapse; font-size:11px;">
-                    <thead>
-                        <tr style="background:#f4f4f4; border-bottom:2px solid #d4af37;">
-                            ${comFoto ? '<th style="padding:8px; text-align:center; width:60px;">Foto</th>' : ''}
-                            <th style="padding:8px; text-align:left;">Descrição do Produto</th>
-                            <th style="padding:8px; text-align:center; width:50px;">Qtd</th>
-                            ${isFin ? '<th style="padding:8px; text-align:right; width:90px;">Subtotal</th>' : ''}
-                        </tr>
-                    </thead>
-                    <tbody>`;
-                itens.forEach(i => {
-                    html += `
-                    <tr style="border-bottom:1px solid #eee;">
-                        ${comFoto ? `<td style="padding:5px; text-align:center;"><img src="${i.image?.split(',')[0] || ''}" style="width:45px; height:45px; object-fit:contain; border-radius:4px;"></td>` : ''}
-                        <td style="padding:8px;">
-                            <b style="font-size:11px; text-transform:uppercase;">${i.name}</b>
-                        </td>
-                        <td style="padding:8px; text-align:center; font-size:12px;"><b>${i.quantidade}</b></td>
-                        ${isFin ? `<td style="padding:8px; text-align:right; font-weight:bold;">${(i.price * i.quantidade).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td>` : ''}
-                    </tr>`;
-                });
-                html += `</tbody></table>`;
-            }
-
-            // --- RESUMO FINANCEIRO E FINALIZAÇÃO ---
-            html += `
-            <div style="margin-top: 25px; border: 2px solid #d4af37; border-radius: 15px; padding: 15px; background: #fff; page-break-inside: avoid;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    
-                    <div style="font-size: 11px; line-height: 1.6; width: 45%;">
-                        <b style="color:#d4af37; font-size:12px; text-transform:uppercase; display:block; margin-bottom:5px;">Resumo do Pedido</b>
-                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #f4f4f4; padding:3px 0;"><span>Total de Itens:</span> <b>${itens.length}</b></div>
-                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #f4f4f4; padding:3px 0;"><span>Data do Pedido:</span> <b>${p.data}</b></div>
-                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #f4f4f4; padding:3px 0;"><span>Pagamento:</span> <b>${p.pagamento || 'A definir'}</b></div>
-                        <div style="margin-top:10px; font-size:10px; color:#777; font-style:italic;">Obrigado por escolher a Luary Shop!</div>
-                    </div>
-
-                    <div style="width: 50%; text-align: right;">
-                        ${isFin ? `
-                            <table style="width:100%; font-size:11px; border-collapse:collapse;">
-                                <tr><td style="text-align:right; padding:3px;">Subtotal:</td><td style="width:100px; font-weight:bold;">${subtotal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td></tr>
-                                ${descPromo > 0 ? `<tr><td style="text-align:right; padding:3px; color:red;">Desconto:</td><td style="color:red;">-${descPromo.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td></tr>` : ''}
-                                ${frete > 0 ? `<tr><td style="text-align:right; padding:3px;">Frete:</td><td>${frete.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td></tr>` : ''}
-                                <tr>
-                                    <td style="text-align:right; padding:8px 3px; font-weight:bold; font-size:14px;">TOTAL FINAL:</td>
-                                    <td style="padding:8px 0; font-weight:800; font-size:20px; border-top:2px solid #000;">${totalFinal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td>
-                                </tr>
-                            </table>
-                        ` : `
-                            <div style="height:100px; display:flex; flex-direction:column; align-items:flex-end; justify-content:center;">
-                                <span style="font-size:16px; font-weight:bold; color:#d4af37; border:1px solid #d4af37; padding:10px; border-radius:8px;">CONFERÊNCIA DE EXPEDIÇÃO</span>
-                                <span style="font-size:9px; margin-top:5px; color:#999;">Pedido #${id.substring(1,8).toUpperCase()}</span>
-                            </div>
-                        `}
-                    </div>
+                <div style="margin-bottom:15px; font-size:11px;">
+                    <b>CLIENTE:</b> ${p.cliente?.nome}<br>
+                    <b>ENDEREÇO:</b> ${p.endereco?.rua || 'Retirada'}
                 </div>
-            </div>
-            
-            <div style="margin-top:20px; text-align:center; font-size:9px; color:#aaa; text-transform:uppercase; letter-spacing:1px;">
-                Este documento é um resumo de conferência interna / Luary Shop
-            </div>
+                <table style="width:100%; font-size:11px; border-collapse:collapse;">
+                    <thead><tr style="background:#f4f4f4;">
+                        <th style="padding:5px; text-align:left;">Item</th>
+                        <th style="padding:5px; text-align:center;">Qtd</th>
+                        ${isFin ? '<th style="padding:5px; text-align:right;">Total</th>' : ''}
+                    </tr></thead>
+                    <tbody>
+                        ${itens.map(i => `
+                        <tr style="border-bottom:1px solid #eee;">
+                            <td style="padding:5px;">${i.name}</td>
+                            <td style="padding:5px; text-align:center;">${i.quantidade}</td>
+                            ${isFin ? `<td style="padding:5px; text-align:right;">${fM(i.price * i.quantidade)}</td>` : ''}
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+                <div style="margin-top:15px; text-align:right; font-weight:bold;">
+                    ${isFin ? 'TOTAL: ' + fM(total) : 'ROMANEIO DE CONFERÊNCIA'}
+                </div>
             </div>`;
-
-            // Envio para área de impressão
-            const area = document.getElementById('printArea'); // Certifique-se que o ID no HTML é 'printArea'
-            area.innerHTML = html;
-            setTimeout(() => { window.print(); }, 500);
+            document.getElementById('printArea').innerHTML = html;
+            document.getElementById('modalRomaneio').classList.remove('hidden');
         });
     });
 }
