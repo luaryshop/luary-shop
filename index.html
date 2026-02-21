@@ -3,36 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luary Shop | Semijoias & Presentes</title>
+    <title>Luary Shop | Chaveiros Temáticos</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --navy: #1a2a3a; --gold: #c5a059; --bg: #fdfdfd; }
+        :root { --navy: #1a2a3a; --accent: #d4af37; --bg: #fcfcfc; }
         body { font-family: 'Montserrat', sans-serif; background: var(--bg); color: var(--navy); }
         .serif { font-family: 'Playfair Display', serif; }
-        .card-luary { background: #fff; border-radius: 15px; border: 1px solid #eee; transition: 0.3s; overflow: hidden; height: 100%; display: flex; flex-direction: column; }
-        .card-luary:hover { border-color: var(--gold); transform: translateY(-5px); }
-        .img-box { width: 100%; aspect-ratio: 1/1; overflow: hidden; background: #f9f9f9; }
-        .img-box img { width: 100%; height: 100%; object-fit: cover; transition: 0.5s; }
-        .btn-add { background: var(--navy); color: #fff; width: 100%; padding: 10px; border-radius: 8px; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-top: auto; }
-        .btn-add:hover { background: var(--gold); }
+        
+        .card-luary { background: #fff; border-radius: 20px; border: 1px solid #f0f0f0; transition: all 0.3s ease; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+        
+        /* Ajuste do Carrossel */
+        .carousel-container { width: 100%; aspect-ratio: 1/1; overflow-x: scroll; display: flex; scroll-snap-type: x mandatory; scrollbar-width: none; background: #fff; }
+        .carousel-container::-webkit-scrollbar { display: none; }
+        .carousel-item { min-width: 100%; scroll-snap-align: start; padding: 10px; }
+        .carousel-item img { width: 100%; height: 100%; object-fit: contain; border-radius: 15px; }
+        
+        .indicator { position: absolute; bottom: 170px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; }
+        .dot { width: 6px; height: 6px; background: rgba(0,0,0,0.2); border-radius: 50%; }
+
+        .btn-add { background: var(--navy); color: #fff; width: 100%; padding: 14px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; transition: 0.3s; margin-top: auto; }
+        .btn-add:hover { background: var(--accent); }
     </style>
 </head>
 <body>
-<header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 p-6 text-center">
-    <h1 class="serif text-3xl tracking-tighter">LUARY <span class="text-[#c5a059]">SHOP</span></h1>
-    <div class="flex justify-center gap-6 mt-4">
-        <button onclick="carregarInicio()" class="text-[11px] font-bold uppercase hover:text-[#c5a059]">Início</button>
-        <a href="carrinho.html" class="text-[11px] font-bold uppercase text-[#c5a059]">Meu Pedido (<span id="cart-total">R$ 0,00</span>)</a>
+
+<header class="bg-white border-b border-gray-100 p-6 text-center sticky top-0 z-50">
+    <h1 class="serif text-4xl" id="store-name">LUARY <span class="text-[#d4af37]">SHOP</span></h1>
+    <div class="flex justify-center gap-8 mt-4">
+        <button onclick="carregarInicio()" class="text-[11px] font-bold uppercase hover:text-[#d4af37]">Coleções</button>
+        <a href="carrinho.html" class="text-[11px] font-bold uppercase text-[#d4af37]">Carrinho (<span id="cart-total">R$ 0,00</span>)</a>
     </div>
 </header>
-<main class="max-w-7xl mx-auto p-6">
-    <h2 id="main-h2" class="serif text-2xl text-center my-10">Coleções Exclusivas</h2>
-    <div id="grid-content" class="grid grid-cols-2 md:grid-cols-4 gap-6"></div>
+
+<main class="max-w-7xl mx-auto p-6 md:p-10">
+    <div id="grid-content" class="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-10"></div>
 </main>
 
 <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
 <script>
     const firebaseConfig = {
         apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
@@ -40,37 +51,67 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const fM = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    let configLoja = {};
+
+    function carregarConfig() {
+        db.ref('settings').on('value', snap => {
+            configLoja = snap.val() || {};
+            carregarInicio();
+        });
+    }
 
     function carregarInicio() {
-        document.getElementById('main-h2').innerText = "Nossas Coleções";
         db.ref('categories').on('value', snap => {
             const grid = document.getElementById('grid-content');
             grid.innerHTML = '';
             snap.forEach(s => {
                 const cat = s.val();
-                grid.innerHTML += `<div class="card-luary cursor-pointer" onclick="verProdutos('${s.key}', '${cat.name}')">
-                    <div class="img-box"><img src="${cat.image || 'https://via.placeholder.com/400'}"></div>
-                    <div class="p-4 text-center"><h3 class="serif text-lg">${cat.name}</h3></div>
-                </div>`;
+                grid.innerHTML += `
+                    <div class="card-luary cursor-pointer group" onclick="verProdutos('${s.key}', '${cat.name}')">
+                        <div class="carousel-item"><img src="${cat.image || 'https://via.placeholder.com/500'}"></div>
+                        <div class="p-6 text-center"><h3 class="serif text-xl">${cat.name}</h3></div>
+                    </div>`;
             });
         });
     }
 
     function verProdutos(catId, catName) {
-        document.getElementById('main-h2').innerText = catName;
         db.ref('products').once('value', snap => {
             const grid = document.getElementById('grid-content');
             grid.innerHTML = '';
+            const promoAtiva = configLoja.promocoes?.ativa || false;
+
             snap.forEach(s => {
                 const p = s.val();
                 if(p.category === catId) {
-                    grid.innerHTML += `<div class="card-luary p-4">
-                        <div class="img-box mb-4"><img src="${p.image}"></div>
-                        <h3 class="text-xs font-semibold mb-2">${p.name}</h3>
-                        <p class="text-sm font-bold text-[#c5a059] mb-4">${fM(p.price)}</p>
-                        <button onclick='addCart(${JSON.stringify({...p, id: s.key})})' class="btn-add">Adicionar</button>
-                    </div>`;
+                    // Trata múltiplas imagens
+                    const fotos = p.image.split(',').map(img => img.trim());
+                    
+                    db.ref(`categories/${catId}`).once('value', catSnap => {
+                        const catData = catSnap.val();
+                        let desconto = promoAtiva ? (p.promoPct || catData.promoPct || 0) : 0;
+                        const precoComDesconto = p.price * (1 - (desconto/100));
+                        const numParcelas = configLoja.empresa?.parcelas || 1;
+
+                        let carouselHtml = '';
+                        fotos.forEach(f => {
+                            carouselHtml += `<div class="carousel-item"><img src="${f}"></div>`;
+                        });
+
+                        grid.innerHTML += `
+                            <div class="card-luary p-4">
+                                <div class="carousel-container">${carouselHtml}</div>
+                                ${fotos.length > 1 ? '<div class="indicator"><div class="dot"></div><div class="dot"></div></div>' : ''}
+                                <div class="flex-1 mt-2">
+                                    <h3 class="text-[11px] font-bold uppercase h-8 overflow-hidden">${p.name}</h3>
+                                    <div class="mb-2">
+                                        <div class="text-lg font-black text-navy">${precoComDesconto.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</div>
+                                        <div class="text-[9px] text-gray-500">${numParcelas}x de ${(precoComDesconto/numParcelas).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</div>
+                                    </div>
+                                </div>
+                                <button onclick='addCart(${JSON.stringify({...p, price: precoComDesconto, id: s.key})})' class="btn-add">Eu quero!</button>
+                            </div>`;
+                    });
                 }
             });
         });
@@ -80,17 +121,17 @@
         let cart = JSON.parse(localStorage.getItem('luary_cart') || '[]');
         cart.push(p);
         localStorage.setItem('luary_cart', JSON.stringify(cart));
-        atualizarTotal();
+        atualizarTotalCarrinho();
         alert("Adicionado ao carrinho!");
     }
 
-    function atualizarTotal() {
+    function atualizarTotalCarrinho() {
         const cart = JSON.parse(localStorage.getItem('luary_cart') || '[]');
         const total = cart.reduce((acc, item) => acc + parseFloat(item.price), 0);
-        document.getElementById('cart-total').innerText = fM(total);
+        document.getElementById('cart-total').innerText = total.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
     }
 
-    window.onload = () => { carregarInicio(); atualizarTotal(); };
+    window.onload = carregarConfig;
 </script>
 </body>
 </html>
