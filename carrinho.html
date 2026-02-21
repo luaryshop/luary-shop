@@ -2,61 +2,280 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meu Pedido | Luary Shop</title>
+    <title>Finalizar Pedido • Luary Shop</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+
     <style>
-        body { font-family: 'Montserrat', sans-serif; background: #fdfdfd; color: #1a2a3a; }
+        :root { --navy: #1a2a3a; --accent: #d4af37; --bg: #fdfdfd; }
+        body { font-family: 'Montserrat', sans-serif; background: var(--bg); color: var(--navy); margin:0; }
         .serif { font-family: 'Playfair Display', serif; }
-        .item-cart { background: white; border-radius: 12px; border: 1px solid #eee; margin-bottom: 10px; display: flex; align-items: center; padding: 10px; }
+        .accent-text { color: var(--accent); }
+        .accent-bg { background: var(--accent); }
+        .card { background: #fff; border-radius: 20px; border: 1px solid #eee; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
+        
+        input { background: #fff !important; border: 1px solid #ddd !important; color: #333 !important; padding: 12px; border-radius: 10px; width: 100%; outline: none; margin-bottom: 12px; font-size: 14px; }
+        input:focus { border-color: var(--accent) !important; }
+
+        .pay-btn { border: 2px solid #eee; border-radius: 14px; padding: 16px; text-align: center; cursor: pointer; transition: 0.3s; }
+        .pay-btn.active { border-color: var(--accent); background: rgba(212, 175, 55, 0.05); }
+        
+        .price-old { text-decoration: line-through; color: #94a3b8; font-size: 12px; }
+        .btn-remove { color: #ef4444; transition: 0.3s; }
+        
+        /* Ocultar setas do input number */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
-<body class="p-6">
-    <div class="max-w-2xl mx-auto">
-        <a href="index.html" class="text-xs font-bold uppercase text-gray-400">← Voltar para a loja</a>
-        <h1 class="serif text-3xl my-6">Seu Carrinho</h1>
-        <div id="lista-carrinho"></div>
-        <div class="mt-8 border-t pt-6">
-            <div class="flex justify-between text-xl font-bold mb-6"><span>Total:</span><span id="total-final">R$ 0,00</span></div>
-            <input type="text" id="nome-cliente" placeholder="Seu nome completo" class="w-full p-4 border rounded-xl mb-3 outline-none">
-            <button onclick="enviarWhatsApp()" class="w-full bg-green-600 text-white font-bold p-4 rounded-xl shadow-lg">Finalizar via WhatsApp</button>
+<body>
+
+<header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
+    <div class="max-w-xl mx-auto p-4 flex justify-between items-center">
+        <button onclick="history.back()" class="text-[10px] font-bold uppercase text-gray-400">← Voltar</button>
+        <h1 class="serif text-lg tracking-tight text-navy">Finalizar Pedido</h1>
+        <div class="w-10"></div>
+    </div>
+</header>
+
+<main class="max-w-xl mx-auto p-4 pb-40">
+
+    <div class="card">
+        <h2 class="serif text-navy uppercase text-[10px] mb-4 tracking-widest text-center opacity-70">Seus Chaveiros & Mimos</h2>
+        <div id="listaItens" class="space-y-4"></div>
+
+        <div class="grid grid-cols-3 gap-2 mt-6 pt-6 border-t border-gray-100">
+            <div class="bg-gray-50 p-3 rounded-xl text-center">
+                <span class="block text-[8px] uppercase text-gray-400 font-bold mb-1">Modelos</span>
+                <b id="totalSkus" class="text-navy">0</b>
+            </div>
+            <div class="bg-gray-50 p-3 rounded-xl text-center">
+                <span class="block text-[8px] uppercase text-gray-400 font-bold mb-1">Qtd Total</span>
+                <b id="totalPecas" class="text-navy">0</b>
+            </div>
+            <div class="bg-gray-50 p-3 rounded-xl border border-accent/20 text-center">
+                <span class="block text-[8px] uppercase text-accent font-bold mb-1">Peso Estimado</span>
+                <b id="pesoTotal" class="text-navy text-xs">0,00g</b>
+            </div>
         </div>
     </div>
-    <script>
-        const fM = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        function renderCart() {
-            const cart = JSON.parse(localStorage.getItem('luary_cart') || '[]');
-            const container = document.getElementById('lista-carrinho');
-            let total = 0;
-            container.innerHTML = cart.length ? '' : '<p>Vazio</p>';
-            cart.forEach((item, index) => {
-                total += parseFloat(item.price);
-                container.innerHTML += `<div class="item-cart">
-                    <img src="${item.image}" class="w-16 h-16 rounded object-cover">
-                    <div class="ml-4 flex-1"><h4 class="text-xs font-bold uppercase">${item.name}</h4><p class="text-sm text-[#c5a059] font-bold">${fM(item.price)}</p></div>
-                    <button onclick="remover(${index})" class="text-red-400 text-xs font-bold">Remover</button>
-                </div>`;
-            });
-            document.getElementById('total-final').innerText = fM(total);
-        }
-        function remover(index) {
-            let cart = JSON.parse(localStorage.getItem('luary_cart') || '[]');
-            cart.splice(index, 1);
-            localStorage.setItem('luary_cart', JSON.stringify(cart));
-            renderCart();
-        }
-        function enviarWhatsApp() {
-            const cart = JSON.parse(localStorage.getItem('luary_cart') || '[]');
-            const nome = document.getElementById('nome-cliente').value;
-            if(!nome || !cart.length) return alert("Preencha os dados!");
-            let msg = `*Pedido Luary Shop*%0A*Cliente:* ${nome}%0A%0A`;
-            cart.forEach(i => msg += `• ${i.name} - R$ ${i.price}%0A`);
-            msg += `%0A*Total:* ${document.getElementById('total-final').innerText}`;
-            const fone = "5500000000000"; // TROQUE PELO SEU NÚMERO
-            window.open(`https://wa.me/${fone}?text=${msg}`);
-        }
-        window.onload = renderCart;
-    </script>
+
+    <div class="card">
+        <h2 class="serif text-accent uppercase text-[10px] mb-4 tracking-widest border-b border-gray-100 pb-2">Suas Informações</h2>
+        <input id="nomeCliente" placeholder="Seu Nome Completo *">
+        <input id="telefoneCliente" placeholder="WhatsApp (DDD + Número) *">
+    </div>
+
+    <div class="card">
+        <h2 class="serif text-accent uppercase text-[10px] mb-4 tracking-widest border-b border-gray-100 pb-2">Endereço de Entrega</h2>
+        <input id="rua" placeholder="Rua / Avenida e Número">
+        <div class="grid grid-cols-2 gap-2">
+            <input id="bairro" placeholder="Bairro">
+            <input id="cidade" placeholder="Cidade">
+        </div>
+        <input id="cepEntrega" placeholder="CEP">
+    </div>
+
+    <div class="card">
+        <h2 class="serif text-accent uppercase text-[10px] mb-4 tracking-widest border-b border-gray-100 pb-2">Forma de Pagamento</h2>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="pay-btn" onclick="setPagamento('Pix', this)">
+                <span class="block text-navy font-bold">PIX</span>
+                <span id="txtDescPix" class="text-[9px] text-green-600 font-bold uppercase">Aguardando...</span>
+            </div>
+            <div class="pay-btn" onclick="setPagamento('Cartão', this)">
+                <span class="block text-navy font-bold">CARTÃO</span>
+                <span id="txtParcelas" class="text-[9px] text-blue-500 font-bold uppercase">Aguardando...</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-navy !text-white">
+        <h2 class="serif text-accent uppercase text-[10px] mb-6 tracking-widest text-center border-b border-white/10 pb-2">Resumo do Pedido</h2>
+        <div class="space-y-4">
+            <div class="flex justify-between text-gray-400 text-sm">
+                <span>Subtotal Itens</span>
+                <b id="subtotalTxt" class="text-white">R$ 0,00</b>
+            </div>
+            
+            <div id="linhaDescontoPix" class="flex justify-between text-green-400 italic text-sm hidden">
+                <span>Desconto Pix</span>
+                <b id="valorDescontoPix">- R$ 0,00</b>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-white/10 flex justify-between items-center">
+                <span class="serif text-accent text-xl uppercase">Total</span>
+                <span id="totalTxt" class="text-3xl font-bold text-white">R$ 0,00</span>
+            </div>
+            <p id="msgParcelas" class="text-center text-[10px] text-gray-400 italic"></p>
+        </div>
+    </div>
+</main>
+
+<footer class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 z-50">
+    <div class="max-w-xl mx-auto">
+        <button onclick="finalizarPedido()" class="w-full accent-bg text-white py-5 rounded-2xl font-bold uppercase tracking-widest shadow-xl active:scale-95 transition">
+            Enviar Pedido via WhatsApp
+        </button>
+    </div>
+</footer>
+
+<script>
+// CONFIGURAÇÃO FIREBASE LUARY
+const firebaseConfig = {
+    apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
+    databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let carrinho = JSON.parse(localStorage.getItem('luary_cart') || '[]');
+let pagamento = '';
+let configLoja = {};
+
+const fM = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+function carregarConfig() {
+    db.ref('settings').on('value', snap => {
+        configLoja = snap.val() || {};
+        const emp = configLoja.empresa || {};
+        document.getElementById('txtDescPix').innerText = `${emp.descPix || 0}% de Desconto`;
+        document.getElementById('txtParcelas').innerText = `${emp.parcelas || 1}x Sem Juros`;
+        carregarCarrinho();
+    });
+}
+
+function carregarCarrinho() {
+    let box = document.getElementById('listaItens');
+    box.innerHTML = '';
+    let subtotal = 0;
+    let pesoTotal = 0;
+    let pecasTotal = 0;
+
+    if (carrinho.length === 0) {
+        box.innerHTML = `<p class="text-center text-gray-400 py-10">Seu carrinho está vazio.</p>`;
+    }
+
+    carrinho.forEach((item, index) => {
+        const qtd = item.quantidade || 1;
+        const preco = parseFloat(item.price) || 0;
+        subtotal += (preco * qtd);
+        pecasTotal += qtd;
+        pesoTotal += (parseFloat(item.weight || 0) * qtd);
+
+        box.innerHTML += `
+        <div class="flex items-center gap-3 py-3 border-b border-gray-50">
+            <img src="${item.image.split(',')[0]}" class="w-16 h-16 object-cover rounded-xl border border-gray-100">
+            <div class="flex-1">
+                <h3 class="text-[11px] font-bold text-navy uppercase leading-tight">${item.name}</h3>
+                <div class="flex items-center gap-2 mt-2">
+                    <button onclick="altQtd(${index},-1)" class="w-7 h-7 bg-gray-100 rounded-lg text-navy font-bold">-</button>
+                    <span class="text-xs font-bold w-5 text-center">${qtd}</span>
+                    <button onclick="altQtd(${index},1)" class="w-7 h-7 bg-gray-100 rounded-lg text-navy font-bold">+</button>
+                </div>
+            </div>
+            <div class="text-right">
+                <button onclick="removerItem(${index})" class="text-[10px] text-red-400 mb-2 block ml-auto">Remover</button>
+                <b class="text-navy text-sm">${fM(preco * qtd)}</b>
+            </div>
+        </div>`;
+    });
+
+    // Lógica Financeira
+    const descPixPct = configLoja.empresa?.descPix || 0;
+    const descontoPixValor = (pagamento === 'Pix') ? (subtotal * (descPixPct / 100)) : 0;
+    const totalFinal = subtotal - descontoPixValor;
+
+    document.getElementById('totalSkus').innerText = carrinho.length;
+    document.getElementById('totalPecas').innerText = pecasTotal;
+    document.getElementById('pesoTotal').innerText = (pesoTotal / 1000).toFixed(3) + " Kg";
+    document.getElementById('subtotalTxt').innerText = fM(subtotal);
+
+    if (descontoPixValor > 0) {
+        document.getElementById('linhaDescontoPix').classList.remove('hidden');
+        document.getElementById('valorDescontoPix').innerText = "- " + fM(descontoPixValor);
+    } else {
+        document.getElementById('linhaDescontoPix').classList.add('hidden');
+    }
+
+    document.getElementById('totalTxt').innerText = fM(totalFinal);
+    
+    // Texto de Parcelamento no Resumo
+    const parcelas = configLoja.empresa?.parcelas || 1;
+    if (pagamento === 'Cartão') {
+        document.getElementById('msgParcelas').innerText = `Pagamento em ${parcelas}x de ${fM(totalFinal/parcelas)} sem juros`;
+    } else {
+        document.getElementById('msgParcelas').innerText = '';
+    }
+
+    window.resumoFinal = { subtotal, totalFinal, pagamento, pecasTotal };
+}
+
+function altQtd(i, d) {
+    carrinho[i].quantidade = (carrinho[i].quantidade || 1) + d;
+    if (carrinho[i].quantidade < 1) return removerItem(i);
+    localStorage.setItem('luary_cart', JSON.stringify(carrinho));
+    carregarCarrinho();
+}
+
+function removerItem(i) {
+    carrinho.splice(i, 1);
+    localStorage.setItem('luary_cart', JSON.stringify(carrinho));
+    carregarCarrinho();
+}
+
+function setPagamento(p, el) {
+    pagamento = p;
+    document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    carregarCarrinho();
+}
+
+async function finalizarPedido() {
+    const nome = document.getElementById('nomeCliente').value;
+    const whats = document.getElementById('telefoneCliente').value;
+    
+    if (!nome || !whats || !pagamento) {
+        alert("Por favor, preencha seu nome, WhatsApp e escolha o pagamento.");
+        return;
+    }
+
+    const pedido = {
+        cliente: { nome, whats },
+        endereco: {
+            rua: document.getElementById('rua').value,
+            bairro: document.getElementById('bairro').value,
+            cidade: document.getElementById('cidade').value,
+            cep: document.getElementById('cepEntrega').value
+        },
+        itens: carrinho,
+        pagamento: pagamento,
+        total: window.resumoFinal.totalFinal,
+        data: new Date().toLocaleString('pt-BR'),
+        status: "Novo"
+    };
+
+    try {
+        await db.ref('orders').push(pedido);
+        
+        const foneLoja = configLoja.empresa?.whats || "";
+        let msg = `*NOVO PEDIDO - LUARY SHOP*\n\n`;
+        msg += `👤 *Cliente:* ${nome}\n`;
+        msg += `💳 *Pagamento:* ${pagamento}\n`;
+        msg += `📦 *Total:* ${fM(window.resumoFinal.totalFinal)}\n\n`;
+        msg += `_Aguardo confirmação dos itens e valor do frete!_`;
+
+        localStorage.removeItem('luary_cart');
+        window.location.href = `https://api.whatsapp.com/send?phone=${foneLoja}&text=${encodeURIComponent(msg)}`;
+    } catch (e) {
+        alert("Erro ao enviar pedido. Verifique sua conexão.");
+    }
+}
+
+window.onload = carregarConfig;
+</script>
 </body>
 </html>
