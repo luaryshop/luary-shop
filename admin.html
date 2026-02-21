@@ -7,29 +7,23 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-
     <style>
         body { background:#0b0b0b; color:#eee; font-family:Inter,Arial; margin:0; }
         nav button.active { border-bottom:2px solid #caa85c; color:#caa85c; }
         section { display:none; min-height:300px; }
         section.active { display:block; }
         .card { background:#141414; border:1px solid #2a2a2a; border-radius:16px; padding:14px; }
-        .btn { background:#222; border:1px solid #444; padding:8px 12px; border-radius:8px; font-size:11px; cursor:pointer; transition: 0.3s; }
-        .btn:hover { background:#333; }
-        .btn-gold { background:#caa85c; color:#000; font-weight:700; padding:10px; border-radius:8px; cursor:pointer; text-transform: uppercase; font-size: 11px; text-align: center; border: none; }
-        input, select { background:#111; border:1px solid #333; padding:8px; border-radius:8px; width:100%; margin-bottom:8px; color:#fff; outline:none; font-size: 12px; }
+        .btn { background:#222; border:1px solid #444; padding:8px 12px; border-radius:8px; font-size:11px; cursor:pointer; }
+        .btn-gold { background:#caa85c; color:#000; font-weight:700; padding:10px; border-radius:8px; cursor:pointer; text-transform: uppercase; font-size: 11px; text-align: center; width: 100%; border:none; }
+        input { background:#111; border:1px solid #333; padding:8px; border-radius:8px; width:100%; margin-bottom:8px; color:#fff; outline:none; font-size: 12px; }
         label { font-size: 10px; color: #666; text-transform: uppercase; font-weight: bold; margin-bottom: 2px; display: block; }
-        
         #print-area { display: none; }
         @media print {
             body * { visibility: hidden; }
             #print-area, #print-area * { visibility: visible; }
-            #print-area { position: absolute; left: 0; top: 0; width: 100%; display: block; background: #fff; color: #000; z-index: 9999; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; display: block; background: #fff; color: #000; }
         }
-        
         #mainModal.active { display: flex; }
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #caa85c; border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -47,57 +41,43 @@
 </nav>
 
 <main class="p-6 max-w-5xl mx-auto">
-    <section id="pedidos" class="active">
-        <div id="listaPedidos" class="grid gap-4"></div>
-    </section>
-
-    <section id="produtos">
-        <div id="listaProdutos" class="grid gap-2"></div>
-    </section>
-
+    <section id="pedidos" class="active"><div id="listaPedidos" class="grid gap-4"></div></section>
+    <section id="produtos"><div id="listaProdutos" class="grid gap-2"></div></section>
     <section id="categorias">
         <div class="card mb-4">
             <input id="newCatName" placeholder="Nome da Categoria">
-            <button class="btn-gold w-full" onclick="novaCategoria()">ADICIONAR CATEGORIA</button>
+            <button class="btn-gold" onclick="novaCategoria()">ADICIONAR CATEGORIA</button>
         </div>
         <div id="listaCategorias" class="grid gap-2"></div>
     </section>
-
     <section id="promocoes">
         <div class="card text-center space-y-6 p-8">
-            <h2 class="text-[#caa85c] font-bold uppercase tracking-widest">Controle de Ofertas</h2>
-            <div class="bg-black/40 p-6 rounded-2xl border border-white/5">
-                <label>Status Global da Promoção</label>
-                <button id="btnStatusPromo" onclick="togglePromoStatus()" class="px-10 py-3 mt-2 rounded-xl font-black text-xs transition-all border border-white/10">CARREGANDO...</button>
-            </div>
-            <button class="btn-gold w-full py-5 text-sm" onclick="abrirPainelPromocoes()">🎨 EDITAR CAMPANHAS POR CATEGORIA</button>
+            <label>Status Global da Promoção</label>
+            <button id="btnStatusPromo" onclick="togglePromoStatus()" class="btn">CARREGANDO...</button>
+            <button class="btn-gold" onclick="abrirPainelPromocoes()">EDITAR CAMPANHAS POR CATEGORIA</button>
         </div>
     </section>
-
     <section id="empresa">
         <div class="card space-y-3">
-            <h2 class="text-[#caa85c] font-bold uppercase text-sm">Configurações da Empresa</h2>
             <input id="empNome" placeholder="Nome da Loja">
             <input id="empSub" placeholder="Slogan">
-            <input id="empWhats" placeholder="WhatsApp (55...)">
-            <div class="grid grid-cols-2 gap-2">
-                <div><label>Desc. PIX %</label><input id="empDesc" type="number"></div>
-                <div><label>Parcelas</label><input id="empParc" type="number"></div>
-            </div>
-            <button class="btn-gold w-full" onclick="salvarEmpresa()">SALVAR DADOS</button>
+            <input id="empWhats" placeholder="WhatsApp">
+            <input id="empDesc" type="number" placeholder="Desc. PIX %">
+            <input id="empParc" type="number" placeholder="Parcelas">
+            <button class="btn-gold" onclick="salvarEmpresa()">SALVAR DADOS</button>
         </div>
     </section>
 </main>
 
 <div id="mainModal" class="fixed inset-0 bg-black/95 z-[200] hidden items-center justify-center p-4">
-    <div class="bg-[#141414] border border-[#2a2a2a] w-full max-w-4xl rounded-3xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div class="p-5 border-b border-[#222] flex justify-between items-center bg-black/50">
+    <div class="bg-[#141414] border border-[#2a2a2a] w-full max-w-4xl rounded-3xl flex flex-col max-h-[90vh]">
+        <div class="p-5 border-b border-[#222] flex justify-between items-center">
             <h3 id="modalTitle" class="text-[#caa85c] font-black uppercase text-sm">Editor</h3>
             <button onclick="fecharModal()" class="text-gray-500 text-3xl">&times;</button>
         </div>
-        <div id="modalBody" class="p-6 overflow-y-auto custom-scroll"></div>
-        <div class="p-5 border-t border-[#222] bg-black/50">
-            <button id="modalSaveBtn" class="btn-gold w-full py-4 text-sm">SALVAR TUDO</button>
+        <div id="modalBody" class="p-6 overflow-y-auto"></div>
+        <div class="p-5 border-t border-[#222]">
+            <button id="modalSaveBtn" class="btn-gold">SALVAR TUDO</button>
         </div>
     </div>
 </div>
@@ -111,7 +91,6 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-
 let pedidoEditando = null;
 const fMoeda = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
@@ -120,30 +99,24 @@ function showTab(id, btn) {
     document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     btn.classList.add('active');
-    
     if(id === 'pedidos') carregarPedidos();
     if(id === 'categorias') carregarCategorias();
     if(id === 'produtos') carregarProdutos();
 }
 
 function carregarPedidos() {
-    db.ref('orders').on('value', snapshot => {
+    db.ref('orders').on('value', s => {
         const container = document.getElementById('listaPedidos');
-        if(!container) return;
         container.innerHTML = '';
-        snapshot.forEach(child => {
-            const p = child.val();
-            container.innerHTML += `
-                <div class="card flex justify-between items-center border-l-4 border-[#caa85c]">
-                    <div>
-                        <b class="text-[#caa85c] text-sm uppercase">${p.cliente?.nome || 'Cliente'}</b><br>
-                        <small class="text-gray-500">${p.data || ''}</small>
-                    </div>
-                    <div class="flex gap-2">
-                        <button class="btn" onclick="abrirEditorPedido('${child.key}')">EDITAR</button>
-                        <button class="btn bg-red-900" onclick="excluirPedido('${child.key}')">🗑</button>
-                    </div>
-                </div>`;
+        s.forEach(c => {
+            const p = c.val();
+            container.innerHTML += `<div class="card flex justify-between items-center border-l-4 border-[#caa85c]">
+                <div><b>${p.cliente?.nome || 'Cliente'}</b><br><small>${p.data || ''}</small></div>
+                <div class="flex gap-2">
+                    <button class="btn" onclick="abrirEditorPedido('${c.key}')">EDITAR</button>
+                    <button class="btn text-red-500" onclick="excluirPedido('${c.key}')">🗑</button>
+                </div>
+            </div>`;
         });
     });
 }
@@ -151,14 +124,11 @@ function carregarPedidos() {
 function carregarCategorias() {
     db.ref('categories').on('value', s => {
         const lista = document.getElementById('listaCategorias');
-        if (!lista) return;
         lista.innerHTML = '';
         s.forEach(c => {
-            const cat = c.val();
-            lista.innerHTML += `
-            <div class="card flex justify-between items-center mb-2">
-                <span class="uppercase text-xs font-bold">${cat.name}</span>
-                <button class="btn text-red-500" onclick="excluirCat('${c.key}')">🗑</button>
+            lista.innerHTML += `<div class="card flex justify-between items-center mb-2">
+                <span class="uppercase text-xs font-bold">${c.val().name}</span>
+                <button class="btn text-red-500" onclick="db.ref('categories/${c.key}').remove()">🗑</button>
             </div>`;
         });
     });
@@ -166,9 +136,7 @@ function carregarCategorias() {
 
 function carregarProdutos() {
     const lista = document.getElementById('listaProdutos');
-    if (!lista) return;
-    lista.innerHTML = '<p class="text-center p-4">Carregando produtos...</p>';
-    
+    lista.innerHTML = 'Carregando...';
     db.ref('categories').once('value', sCats => {
         db.ref('products').once('value', sProds => {
             lista.innerHTML = '';
@@ -177,22 +145,12 @@ function carregarProdutos() {
                 sProds.forEach(p => {
                     const prod = p.val();
                     if(prod.category === cat.key) {
-                        htmlP += `
-                        <div class="card flex justify-between items-center py-2 px-3 bg-[#0d0d0d] mb-1 text-[11px]">
-                            <div class="flex items-center gap-3">
-                                <img src="${prod.image || ''}" class="w-8 h-8 object-cover rounded border border-[#333]">
-                                <span><b class="text-[#caa85c]">[${prod.sku || '---'}]</b> ${prod.name}</span>
-                            </div>
+                        htmlP += `<div class="card flex justify-between items-center mb-1 text-[11px] bg-black/20">
+                            <span><b>[${prod.sku || '---'}]</b> ${prod.name}</span>
                         </div>`;
                     }
                 });
-                if(htmlP) {
-                    lista.innerHTML += `
-                    <div class="mb-4">
-                        <b class="text-[10px] text-[#caa85c] ml-1 uppercase">${cat.val().name}</b>
-                        <div class="mt-1">${htmlP}</div>
-                    </div>`;
-                }
+                if(htmlP) lista.innerHTML += `<div class="mb-4"><b class="text-[#caa85c] uppercase text-[10px]">${cat.val().name}</b>${htmlP}</div>`;
             });
         });
     });
@@ -200,233 +158,72 @@ function carregarProdutos() {
 
 function abrirEditorPedido(id) {
     pedidoEditando = id;
-    db.ref('orders/' + id).once('value', snapshot => {
-        const p = snapshot.val();
+    db.ref('orders/' + id).once('value', s => {
+        const p = s.val();
         document.getElementById('modalTitle').innerText = 'EDITANDO PEDIDO';
         document.getElementById('modalBody').innerHTML = `
-            <div class="grid md:grid-cols-2 gap-4">
-                <div class="card bg-white/5">
-                    <label>Cliente</label><input id="edClienteNome" value="${p.cliente?.nome || ''}">
-                    <label>WhatsApp</label><input id="edClienteTel" value="${p.cliente?.telefone || ''}">
-                </div>
-                <div class="card bg-white/5">
-                    <label>Destinatário</label><input id="edNomeEntrega" value="${p.entrega?.nomeEntrega || ''}">
-                    <label>Rua/Nº</label><input id="edRua" value="${p.entrega?.rua || ''}">
-                    <div class="grid grid-cols-2 gap-2">
-                        <input id="edBairro" placeholder="Bairro" value="${p.entrega?.bairro || ''}">
-                        <input id="edCidade" placeholder="Cidade" value="${p.entrega?.cidade || ''}">
-                    </div>
-                    <label>CEP</label><input id="edCep" value="${p.entrega?.cep || ''}">
-                </div>
-            </div>
-            <div class="mt-4">
-                <label>Itens</label>
-                <div id="edItens" class="space-y-2"></div>
-                <button class="btn w-full mt-2" onclick="addItemEditor()">+ ITEM</button>
-            </div>
-            <div class="grid grid-cols-3 gap-2 mt-4 p-4 bg-black/40 rounded-xl">
-                <div><label>Desc Promo</label><input id="edDescPromo" type="number" step="0.01" value="${p.descontoPromo || 0}"></div>
-                <div><label>Desc PIX</label><input id="edDescPix" type="number" step="0.01" value="${p.descontoPix || 0}"></div>
-                <div><label>Frete</label><input id="edFrete" type="number" step="0.01" value="${p.frete || 0}"></div>
-            </div>
-            <div class="mt-6 border-t border-white/10 pt-4">
-                <p class="text-[10px] text-gray-500 uppercase mb-4 text-center">Imprimir Romaneio</p>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    <button class="btn bg-zinc-800" onclick="imprimirRomaneio('${id}', 1)">CONFERÊNCIA (LISTA)</button>
-                    <button class="btn bg-zinc-800" onclick="imprimirRomaneio('${id}', 2)">FINANCEIRO (LISTA)</button>
-                    <button class="btn bg-zinc-800" onclick="imprimirRomaneio('${id}', 3)">FOTOS (LISTA)</button>
-                    <button class="btn bg-blue-900" onclick="imprimirRomaneio('${id}', 4)">CONFERÊNCIA (GRID)</button>
-                    <button class="btn bg-blue-900" onclick="imprimirRomaneio('${id}', 5)">FINANCEIRO (GRID)</button>
-                    <button class="btn bg-blue-900" onclick="imprimirRomaneio('${id}', 6)">FOTOS (GRID)</button>
-                </div>
+            <label>Cliente</label><input id="edNome" value="${p.cliente?.nome || ''}">
+            <label>WhatsApp</label><input id="edTel" value="${p.cliente?.telefone || ''}">
+            <div class="grid grid-cols-2 gap-2 mt-4">
+                <button class="btn bg-zinc-800" onclick="imprimirRomaneio('${id}', 1)">LISTA SIMPLES</button>
+                <button class="btn bg-blue-900" onclick="imprimirRomaneio('${id}', 6)">GRID C/ FOTOS</button>
             </div>`;
-
-        const itens = p.itens ? (Array.isArray(p.itens) ? p.itens : Object.values(p.itens)) : [];
-        itens.forEach(i => addItemEditor(i));
-        document.getElementById('mainModal').classList.add('active');
-        document.getElementById('modalSaveBtn').onclick = salvarPedidoEditado;
-    });
-}
-
-function addItemEditor(i = {}) {
-    const div = document.createElement('div');
-    div.className = "grid grid-cols-4 gap-2 bg-black/50 p-2 rounded mb-2";
-    div.innerHTML = `
-        <input placeholder="SKU" value="${i.sku||''}">
-        <input placeholder="Nome" value="${i.name||''}">
-        <input type="number" placeholder="Preço" value="${i.price||0}">
-        <input type="number" placeholder="Qtd" value="${i.quantidade||1}">
-        <button class="text-red-500 text-[10px] col-span-4 text-left" onclick="this.parentElement.remove()">REMOVER</button>`;
-    document.getElementById('edItens').appendChild(div);
-}
-
-function salvarPedidoEditado() {
-    const itens = [];
-    let subtotal = 0;
-    document.querySelectorAll('#edItens > div').forEach(div => {
-        const ins = div.querySelectorAll('input');
-        if(ins.length >= 4){
-            const item = { sku: ins[0].value, name: ins[1].value, price: +ins[2].value, quantidade: +ins[3].value };
-            subtotal += (item.price * item.quantidade);
-            itens.push(item);
-        }
-    });
-    db.ref('orders/' + pedidoEditando).update({
-        cliente: { nome: document.getElementById('edClienteNome').value, telefone: document.getElementById('edClienteTel').value },
-        entrega: { 
-            nomeEntrega: document.getElementById('edNomeEntrega').value, 
-            rua: document.getElementById('edRua').value, 
-            bairro: document.getElementById('edBairro').value, 
-            cidade: document.getElementById('edCidade').value,
-            cep: document.getElementById('edCep').value 
-        },
-        itens, subtotal,
-        descontoPromo: +document.getElementById('edDescPromo').value,
-        descontoPix: +document.getElementById('edDescPix').value,
-        frete: +document.getElementById('edFrete').value,
-        total: subtotal - +document.getElementById('edDescPromo').value - +document.getElementById('edDescPix').value + +document.getElementById('edFrete').value
-    }).then(() => { alert("Pedido salvo!"); fecharModal(); });
-}
-
-function abrirPainelPromocoes() {
-    db.ref('categories').once('value', snapshot => {
-        let html = '';
-        snapshot.forEach(cat => {
-            const c = cat.val();
-            html += `
-            <div class="card border-white/5 p-4 mb-4 bg-black/40 text-left">
-                <span class="text-[#caa85c] font-black uppercase text-xs">${c.name}</span>
-                <div class="grid grid-cols-2 gap-4 mt-2">
-                    <div><label>Nome Campanha</label><input id="p_name_${cat.key}" value="${c.promoName||''}"></div>
-                    <div><label>Texto Tag</label><input id="p_tag_${cat.key}" value="${c.promoTag||''}"></div>
-                </div>
-                <div class="grid grid-cols-3 gap-3 mt-2">
-                    <div><label>% Desc.</label><input id="p_pct_${cat.key}" type="number" value="${c.promoPct||0}"></div>
-                    <div><label>Cor Tag</label><input id="p_color_${cat.key}" type="color" value="${c.promoColor||'#caa85c'}"></div>
-                    <div><label>Cor Texto</label><input id="p_tcolor_${cat.key}" type="color" value="${c.promoTextColor||'#ffffff'}"></div>
-                </div>
-            </div>`;
-        });
-        document.getElementById('modalTitle').innerText = 'EDITAR PROMOÇÕES POR CATEGORIA';
-        document.getElementById('modalBody').innerHTML = html;
         document.getElementById('mainModal').classList.add('active');
         document.getElementById('modalSaveBtn').onclick = () => {
-            const updates = {};
-            snapshot.forEach(cat => {
-                updates['categories/' + cat.key + '/promoPct'] = +document.getElementById('p_pct_' + cat.key).value || 0;
-                updates['categories/' + cat.key + '/promoName'] = document.getElementById('p_name_' + cat.key).value;
-                updates['categories/' + cat.key + '/promoTag'] = document.getElementById('p_tag_' + cat.key).value;
-                updates['categories/' + cat.key + '/promoColor'] = document.getElementById('p_color_' + cat.key).value;
-                updates['categories/' + cat.key + '/promoTextColor'] = document.getElementById('p_tcolor_' + cat.key).value;
-            });
-            db.ref().update(updates).then(() => { alert("Salvo!"); fecharModal(); });
+            db.ref('orders/' + id + '/cliente').update({ nome: document.getElementById('edNome').value, telefone: document.getElementById('edTel').value })
+            .then(() => { alert("Salvo!"); fecharModal(); });
         };
     });
 }
 
 function imprimirRomaneio(id, tipo) {
-    db.ref('orders/' + id).once('value', sPed => {
-        db.ref('settings/empresa').once('value', sEmp => {
-            const p = sPed.val(); 
-            const emp = sEmp.val() || { nome: "LUARY SHOP" };
-            const itens = p.itens ? (Array.isArray(p.itens) ? p.itens : Object.values(p.itens)) : [];
-            const isFin = [2, 3, 5, 6].includes(tipo);
-            const isGrid = [4, 5, 6].includes(tipo);
-            const showFoto = [3, 6].includes(tipo);
-
-            let html = `<div style="padding:10mm; font-family:Arial; background:#fff; color:#000;">
-                <h1 style="text-align:center; border-bottom:2px solid #000; padding-bottom:5px; text-transform:uppercase;">${emp.nome}</h1>
-                <div style="display:flex; justify-content:space-between; margin:15px 0; gap: 10px;">
-                    <div style="border:1px solid #000; padding:10px; width:48%; font-size:12px;">
-                        <b>CLIENTE:</b> ${p.cliente?.nome || ''}<br><b>WHATS:</b> ${p.cliente?.telefone || ''}
-                    </div>
-                    <div style="border:1px solid #000; padding:10px; width:48%; font-size:12px;">
-                        <b>DESTINATÁRIO:</b> ${p.entrega?.nomeEntrega || p.cliente?.nome || ''}<br>
-                        <b>ENDEREÇO:</b> ${p.entrega?.rua || ''}, ${p.entrega?.bairro || ''}<br>${p.entrega?.cidade || ''}
-                    </div>
-                </div>`;
-
-            if (!isGrid) {
-                html += `<table style="width:100%; border-collapse:collapse; font-size:11px;">
-                    <thead style="background:#eee;"><tr>
-                        ${showFoto ? '<th style="border:1px solid #000; padding:5px;">FOTO</th>' : ''}
-                        <th style="border:1px solid #000; padding:5px; text-align:left;">PRODUTO</th>
-                        <th style="border:1px solid #000; padding:5px;">QTD</th>
-                        ${isFin ? '<th style="border:1px solid #000; padding:5px; text-align:right;">VALOR</th>' : ''}
-                    </tr></thead><tbody>`;
-                itens.forEach(i => {
-                    html += `<tr>
-                        ${showFoto ? `<td style="border:1px solid #000; text-align:center;"><img src="${i.image || ''}" style="width:50px; height:50px; object-fit:contain;"></td>` : ''}
-                        <td style="border:1px solid #000; padding:5px;"><b>${i.sku || ''}</b> - ${i.name}</td>
-                        <td style="border:1px solid #000; padding:5px; text-align:center;">${i.quantidade}</td>
-                        ${isFin ? `<td style="border:1px solid #000; padding:5px; text-align:right;">${fMoeda(i.price * i.quantidade)}</td>` : ''}
-                    </tr>`;
-                });
-                html += `</tbody></table>`;
-            } else {
-                html += `<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;">`;
-                itens.forEach(i => {
-                    html += `<div style="border:1px solid #000; padding:8px; text-align:center; font-size:10px;">
-                        ${showFoto ? `<img src="${i.image || ''}" style="width:100%; height:80px; object-fit:contain; margin-bottom:5px;">` : ''}
-                        <b>${i.sku}</b><br>${i.name}<br>QTD: ${i.quantidade}
-                        ${isFin ? `<br><b>${fMoeda(i.price * i.quantidade)}</b>` : ''}
-                    </div>`;
-                });
+    db.ref('orders/'+id).once('value', sP => {
+        db.ref('settings/empresa').once('value', sE => {
+            const p = sP.val(); const e = sE.val() || {};
+            const itens = p.itens ? Object.values(p.itens) : [];
+            const isGrid = [4,5,6].includes(tipo);
+            let html = `<div style="padding:10mm; font-family:Arial;">
+                <h1 style="text-align:center; border-bottom:2px solid #000;">${e.nome || 'LUARY SHOP'}</h1>
+                <p><b>CLIENTE:</b> ${p.cliente?.nome}</p>`;
+            if(isGrid) {
+                html += `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px;">`;
+                itens.forEach(i => html += `<div style="border:1px solid #000; padding:5px; text-align:center;"><b>${i.sku}</b><br>${i.name}<br>QTD: ${i.quantidade}</div>`);
                 html += `</div>`;
-            }
-
-            if (isFin) {
-                html += `<div style="margin-top:20px; text-align:right; font-size:13px; border:1px solid #000; padding:10px;">
-                    TOTAL: ${fMoeda(p.total)}
-                </div>`;
+            } else {
+                itens.forEach(i => html += `<p>${i.quantidade}x ${i.sku} - ${i.name}</p>`);
             }
             html += `</div>`;
             document.getElementById('print-area').innerHTML = html;
-            setTimeout(() => { window.print(); }, 700);
+            setTimeout(() => { window.print(); }, 500);
         });
     });
 }
 
 function togglePromoStatus() {
-    db.ref('settings/promocao/ativa').once('value', s => {
-        db.ref('settings/promocao/ativa').set(!s.val());
-    });
+    db.ref('settings/promocao/ativa').once('value', s => db.ref('settings/promocao/ativa').set(!s.val()));
 }
 
 function salvarEmpresa() {
     db.ref('settings/empresa').update({
         nome: document.getElementById('empNome').value,
-        subtitulo: document.getElementById('empSub').value,
         whats: document.getElementById('empWhats').value,
-        descontoPix: +document.getElementById('empDesc').value,
-        parcelas: +document.getElementById('empParc').value
-    }).then(() => alert("Dados salvos!"));
+        descontoPix: +document.getElementById('empDesc').value
+    }).then(() => alert("Salvo!"));
 }
 
-function fecharModal() { document.getElementById('mainModal').classList.remove('active'); }
-function excluirPedido(id) { if(confirm('Excluir pedido?')) db.ref('orders/' + id).remove(); }
-function excluirCat(id) { if(confirm('Excluir categoria?')) db.ref('categories/' + id).remove(); }
 function novaCategoria() {
     const name = document.getElementById('newCatName').value;
     if(name) db.ref('categories').push({name}).then(() => document.getElementById('newCatName').value = '');
 }
 
+function fecharModal() { document.getElementById('mainModal').classList.remove('active'); }
+function excluirPedido(id) { if(confirm('Excluir?')) db.ref('orders/' + id).remove(); }
+
 window.onload = () => {
     carregarPedidos();
     db.ref('settings/promocao/ativa').on('value', s => {
-        const v = s.val(); const b = document.getElementById('btnStatusPromo');
-        if(b) {
-            b.innerText = v ? 'ATIVA' : 'INATIVA';
-            b.className = `px-10 py-3 mt-2 rounded-xl font-black text-xs transition-all border ${v ? 'bg-green-900/20 text-green-500 border-green-500/20':'bg-red-900/20 text-red-500 border-red-500/20'}`;
-        }
-    });
-    db.ref('settings/empresa').once('value', s => {
-        const v = s.val() || {};
-        if(document.getElementById('empNome')) document.getElementById('empNome').value = v.nome || '';
-        if(document.getElementById('empSub')) document.getElementById('empSub').value = v.subtitulo || '';
-        if(document.getElementById('empWhats')) document.getElementById('empWhats').value = v.whats || '';
-        if(document.getElementById('empDesc')) document.getElementById('empDesc').value = v.descontoPix || 0;
-        if(document.getElementById('empParc')) document.getElementById('empParc').value = v.parcelas || 0;
+        const b = document.getElementById('btnStatusPromo');
+        if(b) b.innerText = s.val() ? 'ATIVA' : 'INATIVA';
     });
 };
 </script>
