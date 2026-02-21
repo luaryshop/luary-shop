@@ -75,7 +75,7 @@
         });
     }
 
-    function verProdutos(catId, catName) {
+function verProdutos(catId, catName) {
         db.ref('products').once('value', snap => {
             const grid = document.getElementById('grid-content');
             grid.innerHTML = '';
@@ -88,7 +88,7 @@
                     const fotos = p.image.split(',').map(img => img.trim());
                     
                     db.ref(`categories/${catId}`).once('value', catSnap => {
-                        const catData = catSnap.val();
+                        const catData = catSnap.val() || {};
                         let desconto = promoAtiva ? (p.promoPct || catData.promoPct || 0) : 0;
                         const precoComDesconto = p.price * (1 - (desconto/100));
                         const numParcelas = configLoja.empresa?.parcelas || 1;
@@ -100,11 +100,18 @@
 
                         grid.innerHTML += `
                             <div class="card-luary p-4">
+                                ${desconto > 0 ? `
+                                    <span class="badge-promo" style="background:${catData.promoColor || '#d4af37'}; color:${catData.promoTextColor || '#ffffff'}">
+                                        ${catData.promoTag || 'OFERTA'}
+                                    </span>` : ''}
+
                                 <div class="carousel-container">${carouselHtml}</div>
                                 ${fotos.length > 1 ? '<div class="indicator"><div class="dot"></div><div class="dot"></div></div>' : ''}
+                                
                                 <div class="flex-1 mt-2">
                                     <h3 class="text-[11px] font-bold uppercase h-8 overflow-hidden">${p.name}</h3>
                                     <div class="mb-2">
+                                        ${desconto > 0 ? `<span class="text-[10px] line-through text-gray-400">${p.price.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>` : ''}
                                         <div class="text-lg font-black text-navy">${precoComDesconto.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</div>
                                         <div class="text-[9px] text-gray-500">${numParcelas}x de ${(precoComDesconto/numParcelas).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</div>
                                     </div>
