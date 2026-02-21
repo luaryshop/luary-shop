@@ -16,7 +16,7 @@
         .card { background:#141414; border:1px solid #2a2a2a; border-radius:16px; padding:14px; }
         .btn { background:#222; border:1px solid #444; padding:8px 12px; border-radius:8px; font-size:11px; cursor:pointer; transition: 0.3s; }
         .btn:hover { background:#333; }
-        .btn-gold { background:#caa85c; color:#000; font-weight:700; padding:10px; border-radius:8px; cursor:pointer; text-transform: uppercase; font-size: 11px; text-align: center; }
+        .btn-gold { background:#caa85c; color:#000; font-weight:700; padding:10px; border-radius:8px; cursor:pointer; text-transform: uppercase; font-size: 11px; text-align: center; border: none; }
         input, select { background:#111; border:1px solid #333; padding:8px; border-radius:8px; width:100%; margin-bottom:8px; color:#fff; outline:none; font-size: 12px; }
         label { font-size: 10px; color: #666; text-transform: uppercase; font-weight: bold; margin-bottom: 2px; display: block; }
         
@@ -120,12 +120,16 @@ function showTab(id, btn) {
     document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     btn.classList.add('active');
+    
     if(id === 'pedidos') carregarPedidos();
+    if(id === 'categorias') carregarCategorias();
+    if(id === 'produtos') carregarProdutos();
 }
 
 function carregarPedidos() {
     db.ref('orders').on('value', snapshot => {
         const container = document.getElementById('listaPedidos');
+        if(!container) return;
         container.innerHTML = '';
         snapshot.forEach(child => {
             const p = child.val();
@@ -133,13 +137,63 @@ function carregarPedidos() {
                 <div class="card flex justify-between items-center border-l-4 border-[#caa85c]">
                     <div>
                         <b class="text-[#caa85c] text-sm uppercase">${p.cliente?.nome || 'Cliente'}</b><br>
-                        <small class="text-gray-500">${p.data}</small>
+                        <small class="text-gray-500">${p.data || ''}</small>
                     </div>
                     <div class="flex gap-2">
                         <button class="btn" onclick="abrirEditorPedido('${child.key}')">EDITAR</button>
                         <button class="btn bg-red-900" onclick="excluirPedido('${child.key}')">🗑</button>
                     </div>
                 </div>`;
+        });
+    });
+}
+
+function carregarCategorias() {
+    db.ref('categories').on('value', s => {
+        const lista = document.getElementById('listaCategorias');
+        if (!lista) return;
+        lista.innerHTML = '';
+        s.forEach(c => {
+            const cat = c.val();
+            lista.innerHTML += `
+            <div class="card flex justify-between items-center mb-2">
+                <span class="uppercase text-xs font-bold">${cat.name}</span>
+                <button class="btn text-red-500" onclick="excluirCat('${c.key}')">🗑</button>
+            </div>`;
+        });
+    });
+}
+
+function carregarProdutos() {
+    const lista = document.getElementById('listaProdutos');
+    if (!lista) return;
+    lista.innerHTML = '<p class="text-center p-4">Carregando produtos...</p>';
+    
+    db.ref('categories').once('value', sCats => {
+        db.ref('products').once('value', sProds => {
+            lista.innerHTML = '';
+            sCats.forEach(cat => {
+                let htmlP = '';
+                sProds.forEach(p => {
+                    const prod = p.val();
+                    if(prod.category === cat.key) {
+                        htmlP += `
+                        <div class="card flex justify-between items-center py-2 px-3 bg-[#0d0d0d] mb-1 text-[11px]">
+                            <div class="flex items-center gap-3">
+                                <img src="${prod.image || ''}" class="w-8 h-8 object-cover rounded border border-[#333]">
+                                <span><b class="text-[#caa85c]">[${prod.sku || '---'}]</b> ${prod.name}</span>
+                            </div>
+                        </div>`;
+                    }
+                });
+                if(htmlP) {
+                    lista.innerHTML += `
+                    <div class="mb-4">
+                        <b class="text-[10px] text-[#caa85c] ml-1 uppercase">${cat.val().name}</b>
+                        <div class="mt-1">${htmlP}</div>
+                    </div>`;
+                }
+            });
         });
     });
 }
@@ -196,7 +250,7 @@ function abrirEditorPedido(id) {
 
 function addItemEditor(i = {}) {
     const div = document.createElement('div');
-    div.className = "grid grid-cols-4 gap-2 bg-black/50 p-2 rounded";
+    div.className = "grid grid-cols-4 gap-2 bg-black/50 p-2 rounded mb-2";
     div.innerHTML = `
         <input placeholder="SKU" value="${i.sku||''}">
         <input placeholder="Nome" value="${i.name||''}">
@@ -240,7 +294,7 @@ function abrirPainelPromocoes() {
         snapshot.forEach(cat => {
             const c = cat.val();
             html += `
-            <div class="card border-white/5 p-4 mb-4 bg-black/40">
+            <div class="card border-white/5 p-4 mb-4 bg-black/40 text-left">
                 <span class="text-[#caa85c] font-black uppercase text-xs">${c.name}</span>
                 <div class="grid grid-cols-2 gap-4 mt-2">
                     <div><label>Nome Campanha</label><input id="p_name_${cat.key}" value="${c.promoName||''}"></div>
@@ -276,92 +330,59 @@ function imprimirRomaneio(id, tipo) {
             const p = sPed.val(); 
             const emp = sEmp.val() || { nome: "LUARY SHOP" };
             const itens = p.itens ? (Array.isArray(p.itens) ? p.itens : Object.values(p.itens)) : [];
-            
-            // Configurações de exibição baseadas no tipo (1 a 6)
-            const isFin = [2, 3, 5, 6].includes(tipo);    // Tipos que mostram valores
-            const isGrid = [4, 5, 6].includes(tipo);     // Tipos que usam layout de grade
-            const showFoto = [3, 6].includes(tipo);      // Tipos que mostram imagem do produto
+            const isFin = [2, 3, 5, 6].includes(tipo);
+            const isGrid = [4, 5, 6].includes(tipo);
+            const showFoto = [3, 6].includes(tipo);
 
-            let html = `
-            <div style="padding:10mm; font-family:Arial; background:#fff; color:#000;">
-                <h1 style="text-align:center; border-bottom:2px solid #000; padding-bottom:5px; text-transform:uppercase;">${emp.nome || 'LUARY SHOP'}</h1>
-                
+            let html = `<div style="padding:10mm; font-family:Arial; background:#fff; color:#000;">
+                <h1 style="text-align:center; border-bottom:2px solid #000; padding-bottom:5px; text-transform:uppercase;">${emp.nome}</h1>
                 <div style="display:flex; justify-content:space-between; margin:15px 0; gap: 10px;">
                     <div style="border:1px solid #000; padding:10px; width:48%; font-size:12px;">
-                        <b style="color:#96793a; font-size:10px; text-transform:uppercase;">Dados do Cliente</b><br>
-                        <b>NOME:</b> ${p.cliente?.nome || 'Não informado'}<br>
-                        <b>WHATS:</b> ${p.cliente?.telefone || 'Não informado'}
+                        <b>CLIENTE:</b> ${p.cliente?.nome || ''}<br><b>WHATS:</b> ${p.cliente?.telefone || ''}
                     </div>
                     <div style="border:1px solid #000; padding:10px; width:48%; font-size:12px;">
-                        <b style="color:#96793a; font-size:10px; text-transform:uppercase;">Local de Entrega</b><br>
-                        <b>DESTINATÁRIO:</b> ${p.entrega?.nomeEntrega || p.cliente?.nome || 'O Próprio'}<br>
-                        <b>ENDEREÇO:</b> ${p.entrega?.rua || ''}, ${p.entrega?.bairro || ''}<br>
-                        ${p.entrega?.cidade || ''} - CEP: ${p.entrega?.cep || ''}
+                        <b>DESTINATÁRIO:</b> ${p.entrega?.nomeEntrega || p.cliente?.nome || ''}<br>
+                        <b>ENDEREÇO:</b> ${p.entrega?.rua || ''}, ${p.entrega?.bairro || ''}<br>${p.entrega?.cidade || ''}
                     </div>
                 </div>`;
 
             if (!isGrid) {
-                // Layout em LISTA (Tabela)
                 html += `<table style="width:100%; border-collapse:collapse; font-size:11px;">
-                    <thead style="background:#eee;">
-                        <tr>
-                            ${showFoto ? '<th style="border:1px solid #000; padding:5px; width:60px;">FOTO</th>' : ''}
-                            <th style="border:1px solid #000; padding:5px; text-align:left;">PRODUTO</th>
-                            <th style="border:1px solid #000; padding:5px; width:50px;">QTD</th>
-                            ${isFin ? '<th style="border:1px solid #000; padding:5px; text-align:right; width:90px;">VALOR</th>' : ''}
-                        </tr>
-                    </thead>
-                    <tbody>`;
-                
+                    <thead style="background:#eee;"><tr>
+                        ${showFoto ? '<th style="border:1px solid #000; padding:5px;">FOTO</th>' : ''}
+                        <th style="border:1px solid #000; padding:5px; text-align:left;">PRODUTO</th>
+                        <th style="border:1px solid #000; padding:5px;">QTD</th>
+                        ${isFin ? '<th style="border:1px solid #000; padding:5px; text-align:right;">VALOR</th>' : ''}
+                    </tr></thead><tbody>`;
                 itens.forEach(i => {
                     html += `<tr>
-                        ${showFoto ? `<td style="border:1px solid #000; text-align:center; padding:2px;"><img src="${i.image || ''}" style="width:50px; height:50px; object-fit:contain;"></td>` : ''}
-                        <td style="border:1px solid #000; padding:5px;"><b>${i.sku || '---'}</b> - ${i.name}</td>
+                        ${showFoto ? `<td style="border:1px solid #000; text-align:center;"><img src="${i.image || ''}" style="width:50px; height:50px; object-fit:contain;"></td>` : ''}
+                        <td style="border:1px solid #000; padding:5px;"><b>${i.sku || ''}</b> - ${i.name}</td>
                         <td style="border:1px solid #000; padding:5px; text-align:center;">${i.quantidade}</td>
                         ${isFin ? `<td style="border:1px solid #000; padding:5px; text-align:right;">${fMoeda(i.price * i.quantidade)}</td>` : ''}
                     </tr>`;
                 });
                 html += `</tbody></table>`;
             } else {
-                // Layout em GRID (Cartões)
                 html += `<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;">`;
                 itens.forEach(i => {
-                    html += `<div style="border:1px solid #000; padding:8px; text-align:center; font-size:10px; border-radius:5px;">
+                    html += `<div style="border:1px solid #000; padding:8px; text-align:center; font-size:10px;">
                         ${showFoto ? `<img src="${i.image || ''}" style="width:100%; height:80px; object-fit:contain; margin-bottom:5px;">` : ''}
-                        <b style="font-size:11px;">${i.sku || '---'}</b><br>
-                        <span style="display:block; height:24px; overflow:hidden;">${i.name}</span>
-                        <div style="margin-top:5px; border-top:1px dashed #ccc; pt-2">
-                            <b>QTD: ${i.quantidade}</b>
-                            ${isFin ? `<br><b style="font-size:12px; color:#96793a;">${fMoeda(i.price * i.quantidade)}</b>` : ''}
-                        </div>
+                        <b>${i.sku}</b><br>${i.name}<br>QTD: ${i.quantidade}
+                        ${isFin ? `<br><b>${fMoeda(i.price * i.quantidade)}</b>` : ''}
                     </div>`;
                 });
                 html += `</div>`;
             }
 
-            // Rodapé Financeiro
             if (isFin) {
-                html += `
-                <div style="margin-top:20px; text-align:right; font-size:13px; border:2px solid #000; padding:15px; border-radius:10px;">
-                    Subtotal: ${fMoeda(p.subtotal)}<br>
-                    Frete: ${fMoeda(p.frete || 0)}<br>
-                    Descontos: - ${fMoeda((p.descontoPromo || 0) + (p.descontoPix || 0))}<br>
-                    <b style="font-size:18px; color:#000;">TOTAL DO PEDIDO: ${fMoeda(p.total)}</b>
+                html += `<div style="margin-top:20px; text-align:right; font-size:13px; border:1px solid #000; padding:10px;">
+                    TOTAL: ${fMoeda(p.total)}
                 </div>`;
             }
-            
-            html += `
-                <div style="margin-top:20px; font-size:10px; text-align:center; color:#666;">
-                    Documento gerado em ${new Date().toLocaleString('pt-BR')} - Luary Shop
-                </div>
-            </div>`;
-
+            html += `</div>`;
             document.getElementById('print-area').innerHTML = html;
-            
-            // Aguarda carregar imagens antes de abrir a janela de impressão
-            setTimeout(() => { 
-                window.print(); 
-            }, 700);
+            setTimeout(() => { window.print(); }, 700);
         });
     });
 }
@@ -384,60 +405,12 @@ function salvarEmpresa() {
 
 function fecharModal() { document.getElementById('mainModal').classList.remove('active'); }
 function excluirPedido(id) { if(confirm('Excluir pedido?')) db.ref('orders/' + id).remove(); }
+function excluirCat(id) { if(confirm('Excluir categoria?')) db.ref('categories/' + id).remove(); }
 function novaCategoria() {
     const name = document.getElementById('newCatName').value;
     if(name) db.ref('categories').push({name}).then(() => document.getElementById('newCatName').value = '');
 }
-function carregarCategorias() {
-    db.ref('categories').on('value', s => {
-        const lista = document.getElementById('listaCategorias');
-        if (!lista) return; // Proteção contra erro de elemento inexistente
-        lista.innerHTML = '';
-        s.forEach(c => {
-            const cat = c.val();
-            lista.innerHTML += `<div class="card flex justify-between items-center mb-2">
-                <span class="uppercase text-xs font-bold">${cat.name}</span>
-                <div class="flex gap-2">
-                    <button class="btn text-blue-400" onclick="editarCat('${c.key}','${cat.name}')">✎</button>
-                    <button class="btn text-red-500" onclick="excluirCat('${c.key}')">🗑</button>
-                </div>
-            </div>`;
-        });
-    }); [cite: 53, 54]
-}
-}
-function carregarProdutos() {
-    const lista = document.getElementById('listaProdutos');
-    if (!lista) return;
-    lista.innerHTML = '<p class="text-center p-4">Carregando produtos...</p>';
-    
-    db.ref('categories').once('value', sCats => {
-        db.ref('products').once('value', sProds => {
-            lista.innerHTML = '';
-            sCats.forEach(cat => {
-                let htmlP = '';
-                sProds.forEach(p => {
-                    const prod = p.val();
-                    if(prod.category === cat.key) { // Verifica se o produto pertence a esta categoria
-                        htmlP += `<div class="card flex justify-between items-center py-2 px-3 bg-[#0d0d0d] mb-1 text-[11px]">
-                            <div class="flex items-center gap-3">
-                                <img src="${prod.image || ''}" class="w-8 h-8 object-cover rounded border border-[#333]">
-                                <span><b class="text-[#caa85c]">[${prod.sku || '---'}]</b> ${prod.name}</span>
-                            </div>
-                            <button onclick="editarProduto('${p.key}')" class="btn">✎</button>
-                        </div>`;
-                    }
-                });
-                if(htmlP) {
-                    lista.innerHTML += `<div class="mb-4">
-                        <b class="text-[10px] text-[#caa85c] ml-1 uppercase">${cat.val().name}</b>
-                        <div class="mt-1">${htmlP}</div>
-                    </div>`;
-                }
-            });
-        });
-    }); [cite: 57, 58, 59, 61]
-}
+
 window.onload = () => {
     carregarPedidos();
     db.ref('settings/promocao/ativa').on('value', s => {
@@ -449,11 +422,11 @@ window.onload = () => {
     });
     db.ref('settings/empresa').once('value', s => {
         const v = s.val() || {};
-        document.getElementById('empNome').value = v.nome || '';
-        document.getElementById('empSub').value = v.subtitulo || '';
-        document.getElementById('empWhats').value = v.whats || '';
-        document.getElementById('empDesc').value = v.descontoPix || 0;
-        document.getElementById('empParc').value = v.parcelas || 0;
+        if(document.getElementById('empNome')) document.getElementById('empNome').value = v.nome || '';
+        if(document.getElementById('empSub')) document.getElementById('empSub').value = v.subtitulo || '';
+        if(document.getElementById('empWhats')) document.getElementById('empWhats').value = v.whats || '';
+        if(document.getElementById('empDesc')) document.getElementById('empDesc').value = v.descontoPix || 0;
+        if(document.getElementById('empParc')) document.getElementById('empParc').value = v.parcelas || 0;
     });
 };
 </script>
