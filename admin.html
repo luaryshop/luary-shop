@@ -389,24 +389,55 @@ function novaCategoria() {
     if(name) db.ref('categories').push({name}).then(() => document.getElementById('newCatName').value = '');
 }
 function carregarCategorias() {
-    db.ref('categories').on('value', snapshot => {
-        const container = document.getElementById('listaCategorias');
-        container.innerHTML = '';
-        snapshot.forEach(child => {
-            container.innerHTML += `<div class="card flex justify-between"><span>${child.val().name}</span><button onclick="db.ref('categories/${child.key}').remove()">🗑</button></div>`;
+    db.ref('categories').on('value', s => {
+        const lista = document.getElementById('listaCategorias');
+        if (!lista) return; // Proteção contra erro de elemento inexistente
+        lista.innerHTML = '';
+        s.forEach(c => {
+            const cat = c.val();
+            lista.innerHTML += `<div class="card flex justify-between items-center mb-2">
+                <span class="uppercase text-xs font-bold">${cat.name}</span>
+                <div class="flex gap-2">
+                    <button class="btn text-blue-400" onclick="editarCat('${c.key}','${cat.name}')">✎</button>
+                    <button class="btn text-red-500" onclick="excluirCat('${c.key}')">🗑</button>
+                </div>
+            </div>`;
         });
-    });
+    }); [cite: 53, 54]
+}
 }
 function carregarProdutos() {
-    db.ref('products').once('value', snapshot => {
-        const container = document.getElementById('listaProdutos'); container.innerHTML = '';
-        snapshot.forEach(child => {
-            const p = child.val();
-            container.innerHTML += `<div class="card flex justify-between"><span>${p.name} (${p.sku})</span><button onclick="db.ref('products/${child.key}').remove()">🗑</button></div>`;
+    const lista = document.getElementById('listaProdutos');
+    if (!lista) return;
+    lista.innerHTML = '<p class="text-center p-4">Carregando produtos...</p>';
+    
+    db.ref('categories').once('value', sCats => {
+        db.ref('products').once('value', sProds => {
+            lista.innerHTML = '';
+            sCats.forEach(cat => {
+                let htmlP = '';
+                sProds.forEach(p => {
+                    const prod = p.val();
+                    if(prod.category === cat.key) { // Verifica se o produto pertence a esta categoria
+                        htmlP += `<div class="card flex justify-between items-center py-2 px-3 bg-[#0d0d0d] mb-1 text-[11px]">
+                            <div class="flex items-center gap-3">
+                                <img src="${prod.image || ''}" class="w-8 h-8 object-cover rounded border border-[#333]">
+                                <span><b class="text-[#caa85c]">[${prod.sku || '---'}]</b> ${prod.name}</span>
+                            </div>
+                            <button onclick="editarProduto('${p.key}')" class="btn">✎</button>
+                        </div>`;
+                    }
+                });
+                if(htmlP) {
+                    lista.innerHTML += `<div class="mb-4">
+                        <b class="text-[10px] text-[#caa85c] ml-1 uppercase">${cat.val().name}</b>
+                        <div class="mt-1">${htmlP}</div>
+                    </div>`;
+                }
+            });
         });
-    });
+    }); [cite: 57, 58, 59, 61]
 }
-
 window.onload = () => {
     carregarPedidos();
     db.ref('settings/promocao/ativa').on('value', s => {
