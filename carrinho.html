@@ -148,6 +148,7 @@ const db = firebase.database();
 let carrinho = JSON.parse(localStorage.getItem('luary_cart') || '[]');
 let pagamento = '';
 let configLoja = {};
+window.valorFreteSelecionado = 0; // Inicializa o frete
 
 const fM = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -155,8 +156,11 @@ function carregarConfig() {
     db.ref('settings').on('value', snap => {
         configLoja = snap.val() || {};
         const emp = configLoja.empresa || {};
+        
+        // Atualiza os textos dos botões de pagamento com dados do Firebase
         document.getElementById('txtDescPix').innerText = `${emp.descPix || 0}% de Desconto`;
         document.getElementById('txtParcelas').innerText = `${emp.parcelas || 1}x Sem Juros`;
+        
         carregarCarrinho();
     });
 }
@@ -195,25 +199,45 @@ function carregarCarrinho() {
         </div>`;
     });
 
-    const descPixPct = 5; // Ajuste conforme seu painel
+    // CÁLCULOS FINANCEIROS
+    const descPixPct = configLoja.empresa?.descPix || 0;
     const descPixValor = (pagamento === 'Pix') ? (bruto * (descPixPct / 100)) : 0;
-    const totalFinal = (bruto - descPixValor) + (window.valorFreteSelecionado || 0);
+    const totalFinal = (bruto - descPixValor) + window.valorFreteSelecionado;
 
-    // ESCREVER NO HTML (IDs da Abella Joias)
+    // ATUALIZAÇÃO DA TELA
     document.getElementById('subtotalTxt').innerText = fM(bruto);
     document.getElementById('totalPecas').innerText = pecas;
-    
-    if (descPixValor > 0) {
-        document.getElementById('linhaCondicao').classList.remove('hidden');
-        document.getElementById('labelCondicao').innerText = "Desconto Pix";
-        document.getElementById('valorCondicao').innerText = "- " + fM(descPixValor);
+    document.getElementById('totalSkus').innerText = carrinho.length;
+
+    const linhaCondicao = document.getElementById('linhaCondicao');
+    const labelCondicao = document.getElementById('labelCondicao');
+    const valorCondicao = document.getElementById('valorCondicao');
+
+    if (pagamento === 'Pix' && descPixValor > 0) {
+        linhaCondicao.classList.remove('hidden');
+        labelCondicao.innerText = `Desconto Pix (${descPixPct}%)`;
+        valorCondicao.innerText = `- ${fM(descPixValor)}`;
+        valorCondicao.className = "text-emerald-600 font-bold";
+    } else if (pagamento === 'Cartão') {
+        linhaCondicao.classList.remove('hidden');
+        const numParcelas = configLoja.empresa?.parcelas || 1;
+        labelCondicao.innerText = `${numParcelas}x no Cartão`;
+        valorCondicao.innerText = `${fM(totalFinal / numParcelas)} cada`;
+        valorCondicao.className = "text-blue-500 font-bold";
     } else {
-        document.getElementById('linhaCondicao').classList.add('hidden');
+        linhaCondicao.classList.add('hidden');
     }
 
     document.getElementById('totalTxt').innerText = fM(totalFinal);
-    window.resumoFinal = { subtotal: bruto, total: totalFinal };
+    
+    // GUARDA O VALOR CORRETO PARA O FIREBASE
+    window.resumoFinal = { 
+        subtotal: bruto, 
+        totalFinal: totalFinal, 
+        desconto: descPixValor 
+    };
 }
+
 function altQtd(i, d) {
     carrinho[i].quantidade = (carrinho[i].quantidade || 1) + d;
     if (carrinho[i].quantidade < 1) return removerItem(i);
@@ -239,9 +263,13 @@ async function finalizarPedido() {
     const whats = document.getElementById('telefoneCliente').value;
     
     if (!nome || !whats || !pagamento) {
-        alert("Por favor, preencha seu nome, WhatsApp e escolha o pagamento.");
+        alert("Preencha Nome, WhatsApp e escolha a Forma de Pagamento.");
         return;
     }
+
+    const btnFinalizar = document.querySelector('footer button');
+    btnFinalizar.disabled = true;
+    btnFinalizar.innerText = "ENVIANDO...";
 
     const pedido = {
         cliente: { nome, whats },
@@ -261,17 +289,20 @@ async function finalizarPedido() {
     try {
         await db.ref('orders').push(pedido);
         
-        const foneLoja = configLoja.empresa?.whats || "";
+        const foneLoja = configLoja.empresa?.whats || "5519982071658";
         let msg = `*NOVO PEDIDO - LUARY SHOP*\n\n`;
         msg += `👤 *Cliente:* ${nome}\n`;
         msg += `💳 *Pagamento:* ${pagamento}\n`;
         msg += `📦 *Total:* ${fM(window.resumoFinal.totalFinal)}\n\n`;
-        msg += `_Aguardo confirmação dos itens e valor do frete!_`;
+        msg += `_Aguardo confirmação para prosseguir!_`;
 
         localStorage.removeItem('luary_cart');
         window.location.href = `https://api.whatsapp.com/send?phone=${foneLoja}&text=${encodeURIComponent(msg)}`;
     } catch (e) {
-        alert("Erro ao enviar pedido. Verifique sua conexão.");
+        console.error(e);
+        alert("Erro ao salvar pedido no banco de dados. Verifique sua conexão ou as regras do Firebase.");
+        btnFinalizar.disabled = false;
+        btnFinalizar.innerText = "Enviar Pedido via WhatsApp";
     }
 }
 
