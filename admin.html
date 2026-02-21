@@ -2,67 +2,73 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Painel Admin | Luary</title>
+    <title>Painel Luary Shop</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 p-6">
     <div class="max-w-4xl mx-auto">
-        <h1 class="text-2xl font-bold mb-8">Gestão de Produtos Luary</h1>
+        <h1 class="text-2xl font-bold mb-6">Administração Luary</h1>
         
-        <div class="bg-white p-6 rounded-xl shadow-sm border mb-8">
-            <h2 class="font-bold mb-4 uppercase text-xs text-gray-400">Cadastrar Novo Chaveiro/Produto</h2>
-            <div class="grid grid-cols-2 gap-4">
-                <input type="text" id="p-name" placeholder="Nome do Produto" class="border p-2 rounded">
-                <input type="number" id="p-price" placeholder="Preço (Ex: 49.90)" class="border p-2 rounded">
-                <input type="text" id="p-image" placeholder="Link da Imagem" class="border p-2 rounded">
-                <select id="p-cat" class="border p-2 rounded"></select>
-                <input type="text" id="p-sku" placeholder="SKU/Referência" class="border p-2 rounded">
+        <div class="bg-white p-6 rounded-xl shadow-sm border mb-6">
+            <h2 class="font-bold text-xs uppercase text-gray-400 mb-4">Cadastrar Categoria</h2>
+            <div class="flex gap-2">
+                <input type="text" id="cat-name" placeholder="Nome (Ex: Chaveiros Letras)" class="flex-1 border p-2 rounded">
+                <input type="text" id="cat-img" placeholder="URL da Imagem" class="flex-1 border p-2 rounded">
+                <button onclick="addCat()" class="bg-navy bg-slate-800 text-white px-4 py-2 rounded">Salvar</button>
             </div>
-            <button onclick="salvarProduto()" class="mt-4 bg-blue-600 text-white px-6 py-2 rounded font-bold">Salvar no Catálogo</button>
         </div>
 
-        <div id="lista-admin" class="grid gap-2"></div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border mb-6">
+            <h2 class="font-bold text-xs uppercase text-gray-400 mb-4">Novo Produto</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <input type="text" id="p-name" placeholder="Nome do Chaveiro" class="border p-2 rounded">
+                <input type="number" id="p-price" placeholder="Preço (49.90)" class="border p-2 rounded">
+                <input type="text" id="p-img" placeholder="URL da Imagem" class="border p-2 rounded col-span-2">
+                <select id="p-cat" class="border p-2 rounded col-span-2"></select>
+            </div>
+            <button onclick="addProd()" class="mt-4 bg-blue-600 text-white px-6 py-2 rounded w-full">Cadastrar Produto</button>
+        </div>
+
+        <div id="lista-itens" class="space-y-2"></div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     <script>
-        const config = { databaseURL: "https://catalogo-abella-joias-default-rtdb.firebaseio.com" };
-        firebase.initializeApp(config);
+        firebase.initializeApp({
+            apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
+            databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
+        });
         const db = firebase.database();
 
-        function salvarProduto() {
+        function addCat() {
+            const name = document.getElementById('cat-name').value;
+            const image = document.getElementById('cat-img').value;
+            db.ref('categories').push({ name, image }).then(() => location.reload());
+        }
+
+        function addProd() {
             const p = {
                 name: document.getElementById('p-name').value,
                 price: parseFloat(document.getElementById('p-price').value),
-                image: document.getElementById('p-image').value,
-                category: document.getElementById('p-cat').value,
-                sku: document.getElementById('p-sku').value
+                image: document.getElementById('p-img').value,
+                category: document.getElementById('p-cat').value
             };
-            db.ref('products').push(p).then(() => { alert("Salvo!"); location.reload(); });
+            db.ref('products').push(p).then(() => { alert("Sucesso!"); location.reload(); });
         }
 
-        function carregarAdmin() {
-            // Carrega Categorias no Select
-            db.ref('categories').once('value', snap => {
+        function init() {
+            db.ref('categories').on('value', snap => {
                 const sel = document.getElementById('p-cat');
-                snap.forEach(s => sel.innerHTML += `<option value="${s.key}">${s.val().name}</option>`);
-            });
-            // Carrega Lista de Produtos para Excluir
-            db.ref('products').on('value', snap => {
-                const list = document.getElementById('lista-admin');
-                list.innerHTML = '';
+                const list = document.getElementById('lista-itens');
+                sel.innerHTML = ''; list.innerHTML = '';
                 snap.forEach(s => {
-                    const p = s.val();
-                    list.innerHTML += `
-                        <div class="bg-white p-3 border flex justify-between items-center text-sm">
-                            <span>${p.name} - R$ ${p.price}</span>
-                            <button onclick="db.ref('products/${s.key}').remove()" class="text-red-500 font-bold">Excluir</button>
-                        </div>`;
+                    sel.innerHTML += `<option value="${s.key}">${s.val().name}</option>`;
+                    list.innerHTML += `<div class="p-3 bg-slate-100 flex justify-between"><b>Categoria: ${s.val().name}</b> <button onclick="db.ref('categories/${s.key}').remove()">X</button></div>`;
                 });
             });
         }
-        window.onload = carregarAdmin;
+        window.onload = init;
     </script>
 </body>
 </html>
