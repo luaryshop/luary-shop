@@ -2,73 +2,211 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Painel Luary Shop</title>
+    <title>Painel Administrativo • LUARY SHOP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-50 p-6">
-    <div class="max-w-4xl mx-auto">
-        <h1 class="text-2xl font-bold mb-6">Administração Luary</h1>
-        
-        <div class="bg-white p-6 rounded-xl shadow-sm border mb-6">
-            <h2 class="font-bold text-xs uppercase text-gray-400 mb-4">Cadastrar Categoria</h2>
-            <div class="flex gap-2">
-                <input type="text" id="cat-name" placeholder="Nome (Ex: Chaveiros Letras)" class="flex-1 border p-2 rounded">
-                <input type="text" id="cat-img" placeholder="URL da Imagem" class="flex-1 border p-2 rounded">
-                <button onclick="addCat()" class="bg-navy bg-slate-800 text-white px-4 py-2 rounded">Salvar</button>
-            </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-xl shadow-sm border mb-6">
-            <h2 class="font-bold text-xs uppercase text-gray-400 mb-4">Novo Produto</h2>
-            <div class="grid grid-cols-2 gap-4">
-                <input type="text" id="p-name" placeholder="Nome do Chaveiro" class="border p-2 rounded">
-                <input type="number" id="p-price" placeholder="Preço (49.90)" class="border p-2 rounded">
-                <input type="text" id="p-img" placeholder="URL da Imagem" class="border p-2 rounded col-span-2">
-                <select id="p-cat" class="border p-2 rounded col-span-2"></select>
-            </div>
-            <button onclick="addProd()" class="mt-4 bg-blue-600 text-white px-6 py-2 rounded w-full">Cadastrar Produto</button>
-        </div>
-
-        <div id="lista-itens" class="space-y-2"></div>
-    </div>
-
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    <script>
-        firebase.initializeApp({
-            apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
-            databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
+
+    <style>
+        :root { --navy: #1a2a3a; --gold: #c5a059; }
+        body { background:#fdfdfd; color:var(--navy); font-family:Inter,Arial; margin:0; }
+        nav button.active { border-bottom:2px solid var(--gold); color:var(--gold); }
+        section { display:none; min-height:300px; }
+        section.active { display:block; }
+        .card { background:#fff; border:1px solid #eee; border-radius:16px; padding:14px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        .btn { background:#f4f4f4; border:1px solid #ddd; padding:8px 12px; border-radius:8px; font-size:11px; cursor:pointer; transition: 0.3s; color: var(--navy); }
+        .btn:hover { background:#eee; }
+        .btn-gold { background:var(--navy); color:#fff; font-weight:700; padding:10px; border-radius:8px; cursor:pointer; }
+        .btn-gold:hover { background:var(--gold); }
+        input, select { background:#fff; border:1px solid #ddd; padding:8px; border-radius:8px; width:100%; margin-bottom:8px; color:var(--navy); outline:none; }
+        #mainModal.active { display: flex; }
+        
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; display: block; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="p-5 text-center text-xl font-bold bg-[#1a2a3a] border-b border-[#c5a059] text-[#c5a059] tracking-widest uppercase">
+    LUARY SHOP • Gestão Administrativa
+</header>
+
+<nav class="flex gap-2 p-2 bg-white border-b sticky top-0 z-50 overflow-x-auto justify-center">
+    <button type="button" class="btn active" onclick="showTab('empresa', this)">Loja</button>
+    <button type="button" class="btn" onclick="showTab('categorias', this)">Categorias</button>
+    <button type="button" class="btn" onclick="showTab('produtos', this)">Produtos</button>
+    <button type="button" class="btn" onclick="showTab('pedidos', this)">Pedidos</button>
+</nav>
+
+<main class="p-6 max-w-4xl mx-auto">
+    <section id="empresa" class="active">
+        <div class="card space-y-3">
+            <h2 class="text-[#c5a059] font-bold uppercase text-sm">Configuração da Luary</h2>
+            <input id="empNome" placeholder="Nome da Loja">
+            <input id="empSub" placeholder="Slogan (Ex: Chaveiros & Presentes)">
+            <input id="empWhats" placeholder="WhatsApp (Somente números)">
+            <button class="btn-gold w-full" onclick="salvarEmpresa()">SALVAR CONFIGURAÇÕES</button>
+        </div>
+    </section>
+
+    <section id="categorias">
+        <div class="card mb-4">
+            <input id="newCatName" placeholder="Nome da Categoria">
+            <input id="newCatImg" placeholder="Link da Imagem da Categoria">
+            <button class="btn-gold w-full" onclick="novaCategoria()">+ CADASTRAR CATEGORIA</button>
+        </div>
+        <div id="listaCategorias" class="grid gap-2"></div>
+    </section>
+
+    <section id="produtos">
+        <div class="card mb-4">
+            <h2 class="text-[#c5a059] font-bold uppercase text-xs mb-2">Novo Produto</h2>
+            <input id="p-name" placeholder="Nome do Produto">
+            <div class="grid grid-cols-2 gap-2">
+                <input id="p-price" type="number" placeholder="Preço (0.00)">
+                <input id="p-sku" placeholder="Referência/SKU">
+            </div>
+            <input id="p-img" placeholder="Link da Foto">
+            <select id="p-cat"></select>
+            <button class="btn-gold w-full" onclick="addProd()">SALVAR PRODUTO</button>
+        </div>
+        <div id="listaProdutos" class="grid gap-2"></div>
+    </section>
+
+    <section id="pedidos">
+        <div id="listaPedidos" class="grid gap-4"></div>
+    </section>
+</main>
+
+<div id="print-area"></div>
+
+<script>
+/* CONFIGURAÇÃO FIREBASE LUARY */
+const firebaseConfig = {
+    apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
+    databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const fMoeda = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+
+/* NAVEGAÇÃO */
+function showTab(id, btn) {
+    document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+    if (id === 'categorias') carregarCategorias();
+    if (id === 'produtos') { carregarCategoriasSelect(); carregarProdutos(); }
+    if (id === 'pedidos') carregarPedidos();
+}
+
+/* FUNÇÕES DE GESTÃO */
+function carregarEmpresa() {
+    db.ref('settings/empresa').once('value', s => {
+        const v = s.val() || {};
+        document.getElementById('empNome').value = v.nome || '';
+        document.getElementById('empSub').value = v.subtitulo || '';
+        document.getElementById('empWhats').value = v.whats || '';
+    });
+}
+
+function salvarEmpresa() {
+    db.ref('settings/empresa').update({
+        nome: document.getElementById('empNome').value,
+        subtitulo: document.getElementById('empSub').value,
+        whats: document.getElementById('empWhats').value
+    }).then(() => alert('Loja atualizada!'));
+}
+
+function carregarCategorias() {
+    db.ref('categories').on('value', s => {
+        const lista = document.getElementById('listaCategorias');
+        lista.innerHTML = '';
+        s.forEach(c => {
+            lista.innerHTML += `<div class="card flex justify-between items-center">
+                <span class="uppercase text-xs font-bold">${c.val().name}</span>
+                <button class="btn text-red-500 font-bold" onclick="excluirItem('categories/${c.key}')">Excluir</button>
+            </div>`;
         });
-        const db = firebase.database();
+    });
+}
 
-        function addCat() {
-            const name = document.getElementById('cat-name').value;
-            const image = document.getElementById('cat-img').value;
-            db.ref('categories').push({ name, image }).then(() => location.reload());
-        }
+function carregarCategoriasSelect() {
+    db.ref('categories').once('value', s => {
+        const sel = document.getElementById('p-cat');
+        sel.innerHTML = '';
+        s.forEach(c => { sel.innerHTML += `<option value="${c.key}">${c.val().name}</option>`; });
+    });
+}
 
-        function addProd() {
-            const p = {
-                name: document.getElementById('p-name').value,
-                price: parseFloat(document.getElementById('p-price').value),
-                image: document.getElementById('p-img').value,
-                category: document.getElementById('p-cat').value
-            };
-            db.ref('products').push(p).then(() => { alert("Sucesso!"); location.reload(); });
-        }
+function novaCategoria() {
+    const n = document.getElementById('newCatName').value;
+    const i = document.getElementById('newCatImg').value;
+    if(n) db.ref('categories').push({name:n, image:i}).then(() => {
+        document.getElementById('newCatName').value = '';
+        document.getElementById('newCatImg').value = '';
+    });
+}
 
-        function init() {
-            db.ref('categories').on('value', snap => {
-                const sel = document.getElementById('p-cat');
-                const list = document.getElementById('lista-itens');
-                sel.innerHTML = ''; list.innerHTML = '';
-                snap.forEach(s => {
-                    sel.innerHTML += `<option value="${s.key}">${s.val().name}</option>`;
-                    list.innerHTML += `<div class="p-3 bg-slate-100 flex justify-between"><b>Categoria: ${s.val().name}</b> <button onclick="db.ref('categories/${s.key}').remove()">X</button></div>`;
-                });
-            });
-        }
-        window.onload = init;
-    </script>
+function addProd() {
+    const p = {
+        name: document.getElementById('p-name').value,
+        price: Number(document.getElementById('p-price').value),
+        sku: document.getElementById('p-sku').value,
+        image: document.getElementById('p-img').value,
+        category: document.getElementById('p-cat').value
+    };
+    db.ref('products').push(p).then(() => { alert("Produto salvo!"); carregarProdutos(); });
+}
+
+function carregarProdutos() {
+    db.ref('products').on('value', s => {
+        const lista = document.getElementById('listaProdutos');
+        lista.innerHTML = '';
+        s.forEach(p => {
+            const prod = p.val();
+            lista.innerHTML += `<div class="card flex justify-between items-center text-xs">
+                <div class="flex items-center gap-3">
+                    <img src="${prod.image}" class="w-8 h-8 rounded object-cover">
+                    <span><b>[${prod.sku}]</b> ${prod.name} - ${fMoeda(prod.price)}</span>
+                </div>
+                <button class="text-red-500 font-bold" onclick="excluirItem('products/${p.key}')">Remover</button>
+            </div>`;
+        });
+    });
+}
+
+function carregarPedidos() {
+    db.ref('orders').on('value', s => {
+        const lista = document.getElementById('listaPedidos');
+        lista.innerHTML = '';
+        s.forEach(ped => {
+            const p = ped.val();
+            lista.innerHTML += `<div class="card border-l-4 border-[#c5a059]">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <b class="uppercase text-sm">${p.cliente?.nome || 'Cliente'}</b><br>
+                        <small class="text-gray-500">${p.data || ''}</small>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold text-sm">${fMoeda(p.total)}</div>
+                        <button class="btn text-red-500 mt-2" onclick="excluirItem('orders/${ped.key}')">Arquivar</button>
+                    </div>
+                </div>
+            </div>`;
+        });
+    });
+}
+
+function excluirItem(path) { if(confirm("Deseja excluir este item?")) db.ref(path).remove(); }
+
+window.onload = carregarEmpresa;
+</script>
 </body>
 </html>
