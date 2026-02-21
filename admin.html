@@ -29,7 +29,7 @@
         label { font-size: 10px; text-transform: uppercase; color: #666; font-weight: bold; }
 
         .btn-save { background: var(--gold); color: black; font-weight: bold; padding: 12px; border-radius: 10px; cursor: pointer; width: 100%; transition: 0.3s; text-transform: uppercase; font-size: 11px; }
-        .btn-save:hover { opacity: 0.9; transform: scale(0.98); }
+        .btn-save:hover { opacity: 0.9; }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -45,7 +45,7 @@
 
 <header class="p-6 border-b border-white/5 sticky top-0 bg-[#0b0b0b]/90 backdrop-blur-md z-50">
     <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-        <h1 class="serif text-2xl text-gold">Luary <span class="text-white text-lg">Admin</span></h1>
+        <h1 class="serif text-2xl text-gold">Luary <span class="text-white text-lg text-[12px]">Admin</span></h1>
         <nav class="flex gap-4 md:gap-8 overflow-x-auto pb-2 w-full md:w-auto">
             <button onclick="tab('pedidos')" class="active">PEDIDOS</button>
             <button onclick="tab('produtos')">PRODUTOS</button>
@@ -60,9 +60,9 @@
 
     <section id="pedidos" class="active">
         <div class="card">
-            <div class="flex justify-between items-center mb-6">
+            <div class="flex justify-between items-center mb-6 text-gold">
                 <h2 class="serif text-xl">Gestão de Pedidos</h2>
-                <span id="badgePedidos" class="bg-gold/10 text-gold text-[10px] px-3 py-1 rounded-full font-bold border border-gold/20">0 TOTAL</span>
+                <span id="badgePedidos" class="bg-gold/10 text-[10px] px-3 py-1 rounded-full font-bold">0 TOTAL</span>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-[11px]">
@@ -75,7 +75,7 @@
                             <th class="text-right">Ações</th>
                         </tr>
                     </thead>
-                    <tbody id="tabelaPedidos" class="divide-y divide-white/5"></tbody>
+                    <tbody id="tabelaPedidos"></tbody>
                 </table>
             </div>
         </div>
@@ -83,111 +83,85 @@
 
     <section id="produtos">
         <div class="flex justify-between items-center mb-6">
-            <h2 class="serif text-xl">Catálogo de Produtos</h2>
-            <button onclick="abrirModalProduto()" class="bg-gold text-black px-4 py-2 rounded-lg text-[10px] font-bold uppercase">Novo Produto +</button>
+            <h2 class="serif text-xl">Catálogo</h2>
+            <button onclick="abrirModalProduto()" class="bg-gold text-black px-4 py-2 rounded-lg text-[10px] font-bold uppercase">Novo +</button>
         </div>
-        <div id="gridProdutos" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+        <div id="gridProdutos" class="grid grid-cols-1 md:grid-cols-4 gap-4"></div>
     </section>
 
     <section id="categorias">
         <div class="card max-w-lg mx-auto">
-            <h2 class="serif text-xl mb-6">Categorias do Menu</h2>
+            <h2 class="serif text-xl mb-6">Categorias</h2>
             <div id="listaCategorias" class="space-y-3"></div>
-            <button onclick="addCategoria()" class="mt-6 text-gold text-[10px] font-bold uppercase underline text-center w-full">Adicionar Nova Categoria</button>
-            <button onclick="salvarCategorias()" class="btn-save mt-4">Guardar Alterações</button>
+            <button onclick="addCategoria()" class="mt-4 text-gold text-[10px] font-bold uppercase underline w-full">Adicionar Categoria</button>
+            <button onclick="salvarCategorias()" class="btn-save mt-4">Salvar Categorias</button>
         </div>
     </section>
 
     <section id="promo">
-        <div class="card max-w-xl mx-auto">
-            <h2 class="serif text-xl mb-6">Promoções Ativas</h2>
-            <div class="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl mb-6 flex justify-between items-center">
+        <div class="card max-w-2xl mx-auto">
+            <h2 class="serif text-xl mb-6">Configurar Promoções</h2>
+            
+            <div class="p-4 bg-gold/5 border border-gold/20 rounded-xl mb-8 flex justify-between items-center">
                 <div>
-                    <h3 class="text-xs font-bold">Banner Promocional</h3>
-                    <p class="text-[10px] text-gray-400 italic">Ativa uma faixa de desconto no topo do site.</p>
+                    <h3 class="text-xs font-bold text-gold">Banner do Topo</h3>
+                    <p class="text-[9px] text-gray-400">Ativa a faixa promocional no cabeçalho do site.</p>
                 </div>
-                <button id="btnStatusPromo" onclick="toggleStatusPromo()" class="bg-gray-800 px-4 py-2 rounded-lg text-[10px] font-bold">INATIVA</button>
+                <button id="btnStatusPromo" onclick="toggleStatusPromo()" class="bg-gray-800 px-6 py-2 rounded-lg text-[10px] font-bold transition-all">CARREGANDO...</button>
             </div>
-            <div id="configPromos" class="space-y-4"></div>
-            <button onclick="salvarPromos()" class="btn-save mt-6">Aplicar Promoções</button>
+
+            <div id="configPromos" class="space-y-10">
+                </div>
+
+            <button onclick="salvarPromos()" class="btn-save mt-10">Aplicar Todas as Promoções</button>
         </div>
     </section>
 
     <section id="empresa">
         <div class="card max-w-2xl mx-auto">
-            <h2 class="serif text-xl mb-6">Configurações da Loja</h2>
+            <h2 class="serif text-xl mb-6">Definições da Loja</h2>
             <form id="formEmpresa" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label>Nome da Loja</label>
-                    <input name="nome" placeholder="Luary Shop">
-                </div>
-                <div>
-                    <label>WhatsApp (Com 55)</label>
-                    <input name="whats" placeholder="5519982071658">
-                </div>
-                <div>
-                    <label>Desconto PIX (%)</label>
-                    <input type="number" name="descPix" placeholder="5">
-                </div>
-                <div>
-                    <label>Máximo Parcelas</label>
-                    <input type="number" name="parcelas" placeholder="3">
-                </div>
-                <div class="md:col-span-2">
-                    <label>Link da Imagem Logo</label>
-                    <input name="logo" placeholder="https://...">
-                </div>
-                <button type="button" onclick="salvarEmpresa()" class="btn-save md:col-span-2">Salvar Definições</button>
+                <div><label>Nome da Loja</label><input name="nome"></div>
+                <div><label>WhatsApp (Ex: 5519...)</label><input name="whats"></div>
+                <div><label>Desconto PIX (%)</label><input name="descPix"></div>
+                <div><label>Parcelas Sem Juros</label><input name="parcelas"></div>
+                <div class="md:col-span-2"><label>URL Logo</label><input name="logo"></div>
+                <button type="button" onclick="salvarEmpresa()" class="btn-save md:col-span-2">Salvar Empresa</button>
             </form>
         </div>
     </section>
 
 </main>
 
-<div id="modalProduto" class="fixed inset-0 bg-black/90 z-[100] hidden flex items-center justify-center p-4 overflow-y-auto">
-    <div class="bg-[#141414] border border-white/10 w-full max-w-2xl rounded-2xl p-8">
-        <h2 class="serif text-xl text-gold mb-6 uppercase tracking-widest">Detalhes do Produto</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="md:col-span-2">
-                <label>Nome do Produto</label>
-                <input id="p_name">
-            </div>
-            <div>
-                <label>Preço Original (R$)</label>
-                <input type="number" step="0.01" id="p_old">
-            </div>
-            <div>
-                <label>Preço com Desconto (R$)</label>
-                <input type="number" step="0.01" id="p_price">
-            </div>
-            <div>
-                <label>Categoria</label>
-                <select id="p_cat"></select>
-            </div>
-            <div>
-                <label>URL das Imagens (Separadas por vírgula)</label>
-                <input id="p_imgs">
-            </div>
+<div id="modalProduto" class="fixed inset-0 bg-black/95 z-[100] hidden flex items-center justify-center p-4">
+    <div class="bg-[#141414] border border-white/10 w-full max-w-xl rounded-2xl p-6">
+        <h2 class="serif text-gold mb-6">Detalhes do Produto</h2>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="col-span-2"><label>Nome</label><input id="p_name"></div>
+            <div><label>Preço De</label><input type="number" id="p_old"></div>
+            <div><label>Preço Por</label><input type="number" id="p_price"></div>
+            <div><label>Categoria</label><select id="p_cat"></select></div>
+            <div><label>Imagens (Links separados por vírgula)</label><input id="p_imgs"></div>
         </div>
-        <div class="mt-8 flex gap-3">
-            <button onclick="salvarProduto()" class="btn-save">Salvar Produto</button>
-            <button onclick="fecharModal()" class="btn bg-white/5 border-none w-1/3 text-white uppercase font-bold text-[10px]">Cancelar</button>
+        <div class="mt-6 flex gap-2">
+            <button onclick="salvarProduto()" class="btn-save">Salvar</button>
+            <button onclick="fecharModal()" class="btn text-white border-none">Sair</button>
         </div>
     </div>
 </div>
 
-<div id="modalRomaneio" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
-    <div class="bg-white text-black w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl">
+<div id="modalRomaneio" class="fixed inset-0 bg-black/80 z-[100] hidden flex items-center justify-center p-4">
+    <div class="bg-white text-black w-full max-w-lg rounded-xl overflow-hidden shadow-2xl">
         <div id="printArea" class="p-8"></div>
         <div class="p-4 bg-gray-100 flex gap-2 no-print">
-            <button onclick="window.print()" class="flex-1 bg-black text-white py-3 rounded-xl font-bold uppercase text-[10px]">Imprimir</button>
-            <button onclick="document.getElementById('modalRomaneio').classList.add('hidden')" class="flex-1 border py-3 rounded-xl font-bold uppercase text-[10px]">Fechar</button>
+            <button onclick="window.print()" class="flex-1 bg-black text-white py-3 rounded-lg font-bold">IMPRIMIR</button>
+            <button onclick="fecharModal()" class="flex-1 border py-3 rounded-lg font-bold">FECHAR</button>
         </div>
     </div>
 </div>
 
 <script>
-// CONFIGURAÇÃO FIREBASE LUARY
+// CONFIG FIREBASE LUARY
 const firebaseConfig = {
     apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
     databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
@@ -196,15 +170,15 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 let currentProductId = null;
+const fM = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-// GESTÃO DE ABAS
+// --- GESTÃO DE ABAS ---
 function tab(id) {
     document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
     event.target.classList.add('active');
     
-    // Recarrega dados conforme a aba
     if(id === 'pedidos') listarPedidos();
     if(id === 'produtos') listarProdutos();
     if(id === 'categorias') carregarCategorias();
@@ -212,53 +186,93 @@ function tab(id) {
     if(id === 'empresa') carregarEmpresa();
 }
 
-// FORMATADOR DE MOEDA
-const fM = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-// ==========================================
-// 1. GESTÃO DE EMPRESA
-// ==========================================
+// --- EMPRESA ---
 function carregarEmpresa() {
     db.ref('settings/empresa').once('value', snap => {
         const d = snap.val() || {};
         const form = document.getElementById('formEmpresa');
-        Object.keys(d).forEach(key => {
-            if(form[key]) form[key].value = d[key];
-        });
+        Object.keys(d).forEach(k => { if(form[k]) form[k].value = d[k]; });
     });
 }
 function salvarEmpresa() {
     const d = Object.fromEntries(new FormData(document.getElementById('formEmpresa')));
-    db.ref('settings/empresa').update(d).then(() => alert("Dados da empresa atualizados!"));
+    db.ref('settings/empresa').update(d).then(() => alert("Loja Atualizada!"));
 }
 
-// ==========================================
-// 2. GESTÃO DE CATEGORIAS
-// ==========================================
+// --- CATEGORIAS ---
 function carregarCategorias() {
-    db.ref('categories').on('value', snap => {
+    db.ref('categories').once('value', snap => {
         const cats = snap.val() || {};
         const box = document.getElementById('listaCategorias');
         box.innerHTML = '';
         Object.keys(cats).forEach(id => {
-            box.innerHTML += `
-                <div class="flex gap-2 items-center">
-                    <input class="cat-item" data-id="${id}" value="${cats[id].name || id}">
-                    <button onclick="removerCat('${id}')" class="text-red-500 font-bold px-2">×</button>
-                </div>`;
+            box.innerHTML += `<div class="flex gap-2"><input class="cat-input" data-id="${id}" value="${cats[id].name}"> <button onclick="removerCat('${id}')" class="text-red-500 font-bold px-2">×</button></div>`;
         });
     });
 }
+function addCategoria() {
+    const id = prompt("ID da categoria (sem espaços, ex: chaveiros_resina):");
+    if(id) db.ref('categories/' + id).set({ name: id.toUpperCase() }).then(carregarCategorias);
+}
 function salvarCategorias() {
-    const inputs = document.querySelectorAll('.cat-item');
-    let obj = {};
-    inputs.forEach(i => obj[i.dataset.id] = { name: i.value });
-    db.ref('categories').set(obj).then(() => alert("Categorias salvas!"));
+    const inputs = document.querySelectorAll('.cat-input');
+    inputs.forEach(i => db.ref('categories/' + i.dataset.id).update({ name: i.value }));
+    alert("Categorias Salvas!");
 }
 
-// ==========================================
-// 3. GESTÃO DE PRODUTOS
-// ==========================================
+// --- PROMOÇÕES (LOGICA ABELLA INTEGRAL) ---
+function carregarPromos() {
+    db.ref('settings/promoStatus').on('value', snap => {
+        const status = snap.val();
+        const btn = document.getElementById('btnStatusPromo');
+        btn.innerText = status ? 'ATIVA' : 'INATIVA';
+        btn.className = `px-6 py-2 rounded-lg text-[10px] font-bold transition-all ${status ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`;
+    });
+
+    db.ref('categories').once('value', snap => {
+        const cats = snap.val() || {};
+        const box = document.getElementById('configPromos');
+        box.innerHTML = '';
+
+        Object.keys(cats).forEach(id => {
+            const c = cats[id];
+            box.innerHTML += `
+            <div class="card p-6 border-gold/10 bg-gold/5">
+                <h4 class="text-gold font-bold text-xs uppercase mb-4 tracking-widest border-b border-gold/10 pb-2">${c.name}</h4>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div><label>Texto da Promo</label><input id="p_name_${id}" value="${c.promoName || ''}"></div>
+                    <div><label>Texto da Tag</label><input id="p_tag_${id}" value="${c.promoTag || ''}"></div>
+                    <div><label>% Desconto</label><input type="number" id="p_pct_${id}" value="${c.promoPct || 0}"></div>
+                    <div><label>Cor do Fundo (Hex)</label><input id="p_color_${id}" value="${c.promoColor || '#caa85c'}"></div>
+                    <div><label>Cor do Texto (Hex)</label><input id="p_tcolor_${id}" value="${c.promoTextColor || '#ffffff'}"></div>
+                </div>
+            </div>`;
+        });
+    });
+}
+
+function toggleStatusPromo() {
+    const btn = document.getElementById('btnStatusPromo');
+    const isAtiva = btn.innerText === 'ATIVA';
+    db.ref('settings/promoStatus').set(!isAtiva);
+}
+
+function salvarPromos() {
+    db.ref('categories').once('value', snap => {
+        const cats = snap.val() || {};
+        let updates = {};
+        Object.keys(cats).forEach(id => {
+            updates[`categories/${id}/promoName`] = document.getElementById(`p_name_${id}`).value;
+            updates[`categories/${id}/promoTag`] = document.getElementById(`p_tag_${id}`).value;
+            updates[`categories/${id}/promoPct`] = parseInt(document.getElementById(`p_pct_${id}`).value) || 0;
+            updates[`categories/${id}/promoColor`] = document.getElementById(`p_color_${id}`).value;
+            updates[`categories/${id}/promoTextColor`] = document.getElementById(`p_tcolor_${id}`).value;
+        });
+        db.ref().update(updates).then(() => alert("Promoções Aplicadas!"));
+    });
+}
+
+// --- PRODUTOS ---
 function listarProdutos() {
     db.ref('products').on('value', snap => {
         const prods = snap.val() || {};
@@ -267,26 +281,24 @@ function listarProdutos() {
         Object.keys(prods).forEach(id => {
             const p = prods[id];
             grid.innerHTML += `
-                <div class="card p-4 relative group">
-                    <img src="${p.image?.split(',')[0]}" class="w-full h-32 object-cover rounded-lg mb-3">
-                    <h3 class="text-xs font-bold uppercase truncate">${p.name}</h3>
-                    <p class="text-gold font-bold text-sm">${fM(p.price || 0)}</p>
-                    <div class="mt-4 flex gap-2">
-                        <button onclick="editarProduto('${id}')" class="btn flex-1">EDITAR</button>
-                        <button onclick="removerProduto('${id}')" class="text-red-500 text-lg">×</button>
-                    </div>
-                </div>`;
+            <div class="card p-3 relative">
+                <img src="${p.image?.split(',')[0]}" class="w-full h-32 object-cover rounded-lg">
+                <h3 class="text-[10px] font-bold mt-3 uppercase truncate">${p.name}</h3>
+                <p class="text-gold font-bold text-sm">${fM(p.price || 0)}</p>
+                <div class="flex gap-1 mt-4">
+                    <button onclick="editarProduto('${id}')" class="btn flex-1">EDITAR</button>
+                    <button onclick="removerProduto('${id}')" class="text-red-500 px-2 font-bold">×</button>
+                </div>
+            </div>`;
         });
     });
 }
-function abrirModalProduto() {
-    currentProductId = null;
-    document.getElementById('modalProduto').classList.remove('hidden');
-    // Preenche select de categorias
+function abrirModalProduto() { 
+    currentProductId = null; 
+    document.getElementById('modalProduto').classList.remove('hidden'); 
     db.ref('categories').once('value', snap => {
         const cats = snap.val() || {};
-        const select = document.getElementById('p_cat');
-        select.innerHTML = Object.keys(cats).map(id => `<option value="${id}">${cats[id].name}</option>`).join('');
+        document.getElementById('p_cat').innerHTML = Object.keys(cats).map(id => `<option value="${id}">${cats[id].name}</option>`).join('');
     });
 }
 function salvarProduto() {
@@ -297,81 +309,66 @@ function salvarProduto() {
         category: document.getElementById('p_cat').value,
         image: document.getElementById('p_imgs').value
     };
-    if(currentProductId) {
-        db.ref('products/' + currentProductId).update(p);
-    } else {
-        db.ref('products').push(p);
-    }
+    if(currentProductId) db.ref('products/' + currentProductId).update(p);
+    else db.ref('products').push(p);
     fecharModal();
 }
 
-// ==========================================
-// 4. GESTÃO DE PEDIDOS
-// ==========================================
+// --- PEDIDOS (REPLICADO ABELLA) ---
 function listarPedidos() {
     db.ref('orders').on('value', snap => {
-        const pedidos = snap.val() || {};
+        const peds = snap.val() || {};
         const tabela = document.getElementById('tabelaPedidos');
-        const badge = document.getElementById('badgePedidos');
-        const ids = Object.keys(pedidos).reverse();
+        const ids = Object.keys(peds).reverse();
         tabela.innerHTML = '';
-        badge.innerText = ids.length + " TOTAL";
+        document.getElementById('badgePedidos').innerText = ids.length + " TOTAL";
 
         ids.forEach(id => {
-            const p = pedidos[id];
+            const p = peds[id];
             tabela.innerHTML += `
-                <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                    <td class="py-4 px-2">
-                        <b class="block text-white uppercase text-[10px]">${p.cliente.nome}</b>
-                        <span class="text-gray-500 text-[9px]">${p.data}</span>
-                    </td>
-                    <td class="text-gray-400">${p.itens?.length || 0} un.</td>
-                    <td class="font-bold text-gold">${fM(p.total || 0)}</td>
-                    <td>
-                        <select onchange="atualizarStatus('${id}', this.value)" class="bg-transparent text-[10px] font-bold outline-none">
-                            <option value="Novo" ${p.status === 'Novo'?'selected':''}>NOVO</option>
-                            <option value="Pago" ${p.status === 'Pago'?'selected':''}>PAGO</option>
-                            <option value="Enviado" ${p.status === 'Enviado'?'selected':''}>ENVIADO</option>
-                        </select>
-                    </td>
-                    <td class="text-right">
-                        <button onclick="gerarRomaneio('${id}')" class="text-blue-400 text-[9px] mr-2">ROMANEIO</button>
-                        <button onclick="removerPedido('${id}')" class="text-red-500 text-lg">×</button>
-                    </td>
-                </tr>`;
+            <tr class="border-b border-white/5">
+                <td class="py-4"><b>${p.cliente.nome}</b><br><span class="text-gray-500">${p.data}</span></td>
+                <td>${p.itens?.length || 0} un.</td>
+                <td class="text-gold font-bold">${fM(p.total || 0)}</td>
+                <td>
+                    <select onchange="atualizarStatus('${id}', this.value)" class="bg-transparent text-[10px] font-bold">
+                        <option value="Novo" ${p.status==='Novo'?'selected':''}>NOVO</option>
+                        <option value="Pago" ${p.status==='Pago'?'selected':''}>PAGO</option>
+                        <option value="Enviado" ${p.status==='Enviado'?'selected':''}>ENVIADO</option>
+                    </select>
+                </td>
+                <td class="text-right">
+                    <button onclick="gerarRomaneio('${id}')" class="btn">ROMANEIO</button>
+                    <button onclick="removerPedido('${id}')" class="text-red-500 font-bold ml-2">×</button>
+                </td>
+            </tr>`;
         });
     });
 }
 
 function gerarRomaneio(id) {
-    db.ref('orders/'+id).once('value', snap => {
+    db.ref('orders/' + id).once('value', snap => {
         const p = snap.val();
         const area = document.getElementById('printArea');
         area.innerHTML = `
             <div style="text-align:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:20px;">
-                <h1 class="serif" style="font-size:24px;">LUARY SHOP</h1>
-                <p style="font-size:9px;">COMPROVANTE DE PEDIDO #${id.substring(1,6)}</p>
+                <h2 style="margin:0">LUARY SHOP</h2>
+                <small>COMPROVANTE DE PEDIDO</small>
             </div>
-            <p style="font-size:12px;"><b>CLIENTE:</b> ${p.cliente.nome}</p>
-            <p style="font-size:12px;"><b>ENDEREÇO:</b> ${p.endereco.rua}, ${p.endereco.bairro} - ${p.endereco.cidade}</p>
-            <hr style="margin:15px 0;">
-            <div style="font-size:11px;">
-                ${p.itens.map(i => `<div style="display:flex; justify-content:space-between;"><span>${i.quantidade}x ${i.name}</span><b>${fM(i.price * i.quantidade)}</b></div>`).join('')}
+            <p><b>CLIENTE:</b> ${p.cliente.nome}<br><b>ENDEREÇO:</b> ${p.endereco.rua}, ${p.endereco.bairro} - ${p.endereco.cidade}</p>
+            <div style="margin-top:20px; font-size:12px;">
+                ${p.itens.map(i => `<div style="display:flex; justify-content:space-between"><span>${i.quantidade}x ${i.name}</span><b>${fM(i.price*i.quantidade)}</b></div>`).join('')}
             </div>
-            <div style="margin-top:20px; text-align:right; font-size:18px;">
-                <b>TOTAL: ${fM(p.total)}</b>
-            </div>
+            <h3 style="text-align:right; margin-top:20px;">TOTAL: ${fM(p.total)}</h3>
         `;
         document.getElementById('modalRomaneio').classList.remove('hidden');
     });
 }
 
 function fecharModal() { document.querySelectorAll('.fixed').forEach(m => m.classList.add('hidden')); }
-function atualizarStatus(id, status) { db.ref('orders/'+id).update({ status }); }
-function removerPedido(id) { if(confirm("Remover este pedido?")) db.ref('orders/'+id).remove(); }
-function removerProduto(id) { if(confirm("Remover este produto?")) db.ref('products/'+id).remove(); }
+function removerPedido(id) { if(confirm("Apagar pedido?")) db.ref('orders/' + id).remove(); }
+function atualizarStatus(id, s) { db.ref('orders/'+id).update({status: s}); }
 
-// Inicialização
 window.onload = () => tab('pedidos');
 </script>
 </body>
