@@ -20,8 +20,6 @@
         .btn-gold { background:var(--navy); color:#fff; font-weight:700; padding:10px; border-radius:8px; cursor:pointer; }
         .btn-gold:hover { background:var(--gold); }
         input, select { background:#fff; border:1px solid #ddd; padding:8px; border-radius:8px; width:100%; margin-bottom:8px; color:var(--navy); outline:none; font-size: 13px; }
-        
-        /* Estilos específicos para Promoções  */
         .promo-row { display: grid; grid-template-columns: 1fr 80px 120px 80px; gap: 8px; align-items: center; border-bottom: 1px solid #f0f0f0; padding: 10px 0; }
     </style>
 </head>
@@ -45,8 +43,20 @@
         <div class="card space-y-3">
             <h2 class="text-[#c5a059] font-bold uppercase text-sm">Configuração da Luary</h2>
             <input id="empNome" placeholder="Nome da Loja">
-            <input id="empSub" placeholder="Slogan (Ex: Chaveiros & Presentes)">
+            <input id="empSub" placeholder="Slogan">
             <input id="empWhats" placeholder="WhatsApp (Ex: 5511999999999)">
+            
+            <div class="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-gray-400">Desconto Pix (%)</label>
+                    <input id="empDescPix" type="number" placeholder="Ex: 5">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-gray-400">Parcelas s/ Juros</label>
+                    <input id="empParcelas" type="number" placeholder="Ex: 3">
+                </div>
+            </div>
+            
             <button class="btn-gold w-full" onclick="salvarEmpresa()">SALVAR CONFIGURAÇÕES</button>
         </div>
     </section>
@@ -54,7 +64,7 @@
     <section id="categorias">
         <div class="card mb-4">
             <input id="newCatName" placeholder="Nome da Categoria">
-            <input id="newCatImg" placeholder="Link da Imagem da Categoria">
+            <input id="newCatImg" placeholder="Link da Imagem">
             <button class="btn-gold w-full" onclick="novaCategoria()">+ CADASTRAR CATEGORIA</button>
         </div>
         <div id="listaCategorias" class="grid gap-2"></div>
@@ -82,17 +92,14 @@
                 <button id="btnStatusPromo" onclick="togglePromoStatus()" class="btn-gold px-4 py-1 text-[10px]">INATIVA</button>
             </div>
             
-            <div class="text-[10px] font-bold text-gray-400 uppercase grid grid-cols-4 gap-2 mb-2 px-2">
-                <span>Categoria</span>
-                <span>% Desc.</span>
-                <span>Tag Texto</span>
-                <span>Cor Tag</span>
-            </div>
-            
-            <div id="containerPromocoes">
+            <h3 class="text-[11px] font-bold text-navy uppercase mb-4 border-b pb-2">Promoção por Categoria</h3>
+            <div id="containerPromocoes"></div>
+
+            <h3 class="text-[11px] font-bold text-navy uppercase mt-10 mb-4 border-b pb-2">Ajuste de Produto Individual</h3>
+            <div id="containerPromoProdutos" class="space-y-2">
                 </div>
             
-            <button class="btn-gold w-full mt-6" onclick="salvarPromocoes()">APLICAR PROMOÇÕES EM TODA A LOJA</button>
+            <button class="btn-gold w-full mt-6" onclick="salvarPromocoes()">APLICAR TODAS AS PROMOÇÕES</button>
         </div>
     </section>
 
@@ -123,38 +130,96 @@ function showTab(id, btn) {
     if (id === 'pedidos') carregarPedidos();
 }
 
-/* --- LOGICA DE PROMOÇÕES (ADAPTADA DA ABELLA)  --- */
+/* --- LOGICA DE PROMOÇÕES ATUALIZADA --- */
 
 async function carregarPainelPromocoes() {
-    const container = document.getElementById('containerPromocoes');
-    container.innerHTML = '<p class="text-center p-4">Carregando categorias...</p>';
+    const containerCat = document.getElementById('containerPromocoes');
+    const containerProd = document.getElementById('containerPromoProdutos');
     
     try {
+        // Carrega Status Global
         const settingsSnap = await db.ref('settings/promocoes').once('value');
         const settings = settingsSnap.val() || { ativa: false };
-        
         const btnStatus = document.getElementById('btnStatusPromo');
         btnStatus.innerText = settings.ativa ? 'ATIVA' : 'INATIVA';
         btnStatus.style.background = settings.ativa ? '#10b981' : '#1a2a3a';
 
+        // Carrega Categorias
         const catSnap = await db.ref('categories').once('value');
-        container.innerHTML = '';
-        
+        containerCat.innerHTML = '';
         catSnap.forEach(snap => {
             const cat = snap.val();
-            const id = snap.key;
-            container.innerHTML += `
-                <div class="promo-row" data-id="${id}">
-                    <span class="text-xs font-bold truncate">${cat.name}</span>
-                    <input type="number" class="p-promo-pct" value="${cat.promoPct || 0}" placeholder="0">
-                    <input type="text" class="p-promo-tag" value="${cat.promoTag || ''}" placeholder="Ex: SALE">
-                    <input type="color" class="p-promo-color h-10" value="${cat.promoColor || '#c5a059'}">
-                </div>
-            `;
+            containerCat.innerHTML += `
+                <div class="promo-row" data-id="${snap.key}" data-type="category">
+                    <span class="text-[11px] font-bold truncate">${cat.name}</span>
+                    <input type="number" class="p-promo-pct" value="${cat.promoPct || 0}">
+                    <input type="text" class="p-promo-tag" value="${cat.promoTag || ''}" placeholder="Tag">
+                    <input type="color" class="p-promo-color h-8" value="${cat.promoColor || '#c5a059'}">
+                </div>`;
         });
-    } catch (e) { container.innerHTML = 'Erro ao carregar.'; }
+
+        // Carrega Produtos para Promo Individual
+        const prodSnap = await db.ref('products').once('value');
+        containerProd.innerHTML = '';
+        prodSnap.forEach(snap => {
+            const p = snap.val();
+            containerProd.innerHTML += `
+                <div class="card flex justify-between items-center text-[10px] promo-prod-row" data-id="${snap.key}">
+                    <span>${p.name}</span>
+                    <div class="flex gap-2 items-center">
+                        <span>Desc %:</span>
+                        <input type="number" class="p-prod-desc w-16 mb-0" value="${p.promoPct || 0}">
+                    </div>
+                </div>`;
+        });
+    } catch (e) { console.error(e); }
 }
 
+async function salvarPromocoes() {
+    const updates = {};
+    
+    // Updates Categorias
+    document.querySelectorAll('.promo-row').forEach(row => {
+        const id = row.dataset.id;
+        updates[`categories/${id}/promoPct`] = parseInt(row.querySelector('.p-promo-pct').value) || 0;
+        updates[`categories/${id}/promoTag`] = row.querySelector('.p-promo-tag').value;
+        updates[`categories/${id}/promoColor`] = row.querySelector('.p-promo-color').value;
+    });
+
+    // Updates Produtos Individuais
+    document.querySelectorAll('.promo-prod-row').forEach(row => {
+        const id = row.dataset.id;
+        updates[`products/${id}/promoPct`] = parseInt(row.querySelector('.p-prod-desc').value) || 0;
+    });
+
+    await db.ref().update(updates);
+    alert("Promoções e descontos de produtos salvos!");
+}
+
+/* --- FUNÇÕES EMPRESA ATUALIZADAS --- */
+
+function carregarEmpresa() {
+    db.ref('settings/empresa').once('value', s => {
+        const v = s.val() || {};
+        document.getElementById('empNome').value = v.nome || '';
+        document.getElementById('empSub').value = v.subtitulo || '';
+        document.getElementById('empWhats').value = v.whats || '';
+        document.getElementById('empDescPix').value = v.descPix || 0;
+        document.getElementById('empParcelas').value = v.parcelas || 1;
+    });
+}
+
+function salvarEmpresa() {
+    db.ref('settings/empresa').update({
+        nome: document.getElementById('empNome').value,
+        subtitulo: document.getElementById('empSub').value,
+        whats: document.getElementById('empWhats').value,
+        descPix: parseInt(document.getElementById('empDescPix').value) || 0,
+        parcelas: parseInt(document.getElementById('empParcelas').value) || 1
+    }).then(() => alert('Configurações da Loja salvas!'));
+}
+
+/* --- AUXILIARES --- */
 function togglePromoStatus() {
     const btn = document.getElementById('btnStatusPromo');
     const novoStatus = btn.innerText === 'INATIVA';
@@ -164,42 +229,6 @@ function togglePromoStatus() {
     });
 }
 
-async function salvarPromocoes() {
-    const rows = document.querySelectorAll('.promo-row');
-    const updates = {};
-    
-    rows.forEach(row => {
-        const id = row.dataset.id;
-        updates[`categories/${id}/promoPct`] = parseInt(row.querySelector('.p-promo-pct').value) || 0;
-        updates[`categories/${id}/promoTag`] = row.querySelector('.p-promo-tag').value;
-        updates[`categories/${id}/promoColor`] = row.querySelector('.p-promo-color').value;
-    });
-
-    try {
-        await db.ref().update(updates);
-        alert("Promoções atualizadas com sucesso!");
-    } catch (e) { alert("Erro ao salvar."); }
-}
-
-/* --- FUNÇÕES RESTANTES (LOJA, CAT, PROD) --- */
-
-function carregarEmpresa() {
-    db.ref('settings/empresa').once('value', s => {
-        const v = s.val() || {};
-        document.getElementById('empNome').value = v.nome || '';
-        document.getElementById('empSub').value = v.subtitulo || '';
-        document.getElementById('empWhats').value = v.whats || '';
-    });
-}
-
-function salvarEmpresa() {
-    db.ref('settings/empresa').update({
-        nome: document.getElementById('empNome').value,
-        subtitulo: document.getElementById('empSub').value,
-        whats: document.getElementById('empWhats').value
-    }).then(() => alert('Configurações salvas!'));
-}
-
 function carregarCategorias() {
     db.ref('categories').on('value', s => {
         const lista = document.getElementById('listaCategorias');
@@ -207,7 +236,7 @@ function carregarCategorias() {
         s.forEach(c => {
             lista.innerHTML += `<div class="card flex justify-between items-center">
                 <span class="uppercase text-xs font-bold">${c.val().name}</span>
-                <button class="btn text-red-500 font-bold" onclick="excluirItem('categories/${c.key}')">Remover</button>
+                <button class="btn text-red-500 font-bold" onclick="excluirItem('categories/${c.key}')">Excluir</button>
             </div>`;
         });
     });
@@ -221,12 +250,6 @@ function carregarCategoriasSelect() {
     });
 }
 
-function novaCategoria() {
-    const n = document.getElementById('newCatName').value;
-    const i = document.getElementById('newCatImg').value;
-    if(n) db.ref('categories').push({name:n, image:i, promoPct: 0});
-}
-
 function addProd() {
     const p = {
         name: document.getElementById('p-name').value,
@@ -235,7 +258,7 @@ function addProd() {
         image: document.getElementById('p-img').value,
         category: document.getElementById('p-cat').value
     };
-    db.ref('products').push(p).then(() => alert("Produto cadastrado!"));
+    db.ref('products').push(p).then(() => alert("Produto salvo!"));
 }
 
 function carregarProdutos() {
@@ -245,10 +268,7 @@ function carregarProdutos() {
         s.forEach(p => {
             const prod = p.val();
             lista.innerHTML += `<div class="card flex justify-between items-center text-[10px]">
-                <div class="flex items-center gap-2">
-                    <img src="${prod.image}" class="w-6 h-6 rounded object-cover">
-                    <span><b>${prod.sku}</b> - ${prod.name}</span>
-                </div>
+                <span><b>${prod.sku}</b> - ${prod.name}</span>
                 <button class="text-red-400 font-bold" onclick="excluirItem('products/${p.key}')">X</button>
             </div>`;
         });
@@ -267,6 +287,12 @@ function carregarPedidos() {
             </div>`;
         });
     });
+}
+
+function novaCategoria() {
+    const n = document.getElementById('newCatName').value;
+    const i = document.getElementById('newCatImg').value;
+    if(n) db.ref('categories').push({name:n, image:i, promoPct: 0});
 }
 
 function excluirItem(path) { if(confirm("Confirmar exclusão?")) db.ref(path).remove(); }
