@@ -25,18 +25,15 @@
         
         .card { background: var(--card); border: 1px solid #2a2a2a; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
         input, select, textarea { background: #1a1a1a !important; border: 1px solid #333 !important; color: white !important; padding: 10px; border-radius: 8px; width: 100%; outline: none; font-size: 13px; margin-top: 5px; }
-        input:focus { border-color: var(--gold) !important; }
         label { font-size: 10px; text-transform: uppercase; color: #666; font-weight: bold; }
 
-        .btn-save { background: var(--gold); color: black; font-weight: bold; padding: 12px; border-radius: 10px; cursor: pointer; width: 100%; transition: 0.3s; text-transform: uppercase; font-size: 11px; }
-        .btn-save:hover { opacity: 0.9; }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
+        .btn-save { background: var(--gold); color: black; font-weight: bold; padding: 12px; border-radius: 10px; cursor: pointer; width: 100%; transition: 0.3s; text-transform: uppercase; font-size: 11px; text-align: center; }
+        
+        /* Estilos de Impressão */
         @media print {
             body * { visibility: hidden; }
             #printArea, #printArea * { visibility: visible; }
-            #printArea { position: absolute; left: 0; top: 0; width: 100%; color: black !important; background: white !important; }
+            #printArea { position: absolute; left: 0; top: 0; width: 100%; color: black !important; background: white !important; padding: 20px; }
             .no-print { display: none !important; }
         }
     </style>
@@ -45,7 +42,7 @@
 
 <header class="p-6 border-b border-white/5 sticky top-0 bg-[#0b0b0b]/90 backdrop-blur-md z-50">
     <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-        <h1 class="serif text-2xl text-gold">Luary <span class="text-white text-lg text-[12px]">Admin</span></h1>
+        <h1 class="serif text-2xl text-gold">Luary <span class="text-white text-[12px]">Admin</span></h1>
         <nav class="flex gap-4 md:gap-8 overflow-x-auto pb-2 w-full md:w-auto">
             <button onclick="tab('pedidos')" class="active">PEDIDOS</button>
             <button onclick="tab('produtos')">PRODUTOS</button>
@@ -61,8 +58,8 @@
     <section id="pedidos" class="active">
         <div class="card">
             <div class="flex justify-between items-center mb-6 text-gold">
-                <h2 class="serif text-xl">Gestão de Pedidos</h2>
-                <span id="badgePedidos" class="bg-gold/10 text-[10px] px-3 py-1 rounded-full font-bold">0 TOTAL</span>
+                <h2 class="serif text-xl text-white">Gestão de Pedidos</h2>
+                <span id="badgePedidos" class="bg-gold/10 text-[10px] px-3 py-1 rounded-full font-bold border border-gold/20">0 TOTAL</span>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-[11px]">
@@ -72,96 +69,44 @@
                             <th>Itens</th>
                             <th>Total</th>
                             <th>Status</th>
-                            <th class="text-right">Ações</th>
+                            <th class="text-right">Romaneios</th>
+                            <th class="text-right">Ação</th>
                         </tr>
                     </thead>
-                    <tbody id="tabelaPedidos"></tbody>
+                    <tbody id="tabelaPedidos" class="divide-y divide-white/5"></tbody>
                 </table>
             </div>
-        </div>
-    </section>
-
-    <section id="produtos">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="serif text-xl">Catálogo</h2>
-            <button onclick="abrirModalProduto()" class="bg-gold text-black px-4 py-2 rounded-lg text-[10px] font-bold uppercase">Novo +</button>
-        </div>
-        <div id="gridProdutos" class="grid grid-cols-1 md:grid-cols-4 gap-4"></div>
-    </section>
-
-    <section id="categorias">
-        <div class="card max-w-lg mx-auto">
-            <h2 class="serif text-xl mb-6">Categorias</h2>
-            <div id="listaCategorias" class="space-y-3"></div>
-            <button onclick="addCategoria()" class="mt-4 text-gold text-[10px] font-bold uppercase underline w-full">Adicionar Categoria</button>
-            <button onclick="salvarCategorias()" class="btn-save mt-4">Salvar Categorias</button>
         </div>
     </section>
 
     <section id="promo">
         <div class="card max-w-2xl mx-auto">
             <h2 class="serif text-xl mb-6">Configurar Promoções</h2>
-            
             <div class="p-4 bg-gold/5 border border-gold/20 rounded-xl mb-8 flex justify-between items-center">
                 <div>
                     <h3 class="text-xs font-bold text-gold">Banner do Topo</h3>
                     <p class="text-[9px] text-gray-400">Ativa a faixa promocional no cabeçalho do site.</p>
                 </div>
-                <button id="btnStatusPromo" onclick="toggleStatusPromo()" class="bg-gray-800 px-6 py-2 rounded-lg text-[10px] font-bold transition-all">CARREGANDO...</button>
+                <button id="btnStatusPromo" onclick="toggleStatusPromo()" class="bg-gray-800 px-6 py-2 rounded-lg text-[10px] font-bold">CARREGANDO...</button>
             </div>
-
-            <div id="configPromos" class="space-y-10">
-                </div>
-
+            <div id="configPromos" class="space-y-6"></div>
             <button onclick="salvarPromos()" class="btn-save mt-10">Aplicar Todas as Promoções</button>
         </div>
     </section>
 
-    <section id="empresa">
-        <div class="card max-w-2xl mx-auto">
-            <h2 class="serif text-xl mb-6">Definições da Loja</h2>
-            <form id="formEmpresa" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div><label>Nome da Loja</label><input name="nome"></div>
-                <div><label>WhatsApp (Ex: 5519...)</label><input name="whats"></div>
-                <div><label>Desconto PIX (%)</label><input name="descPix"></div>
-                <div><label>Parcelas Sem Juros</label><input name="parcelas"></div>
-                <div class="md:col-span-2"><label>URL Logo</label><input name="logo"></div>
-                <button type="button" onclick="salvarEmpresa()" class="btn-save md:col-span-2">Salvar Empresa</button>
-            </form>
-        </div>
-    </section>
+    </main>
 
-</main>
-
-<div id="modalProduto" class="fixed inset-0 bg-black/95 z-[100] hidden flex items-center justify-center p-4">
-    <div class="bg-[#141414] border border-white/10 w-full max-w-xl rounded-2xl p-6">
-        <h2 class="serif text-gold mb-6">Detalhes do Produto</h2>
-        <div class="grid grid-cols-2 gap-4">
-            <div class="col-span-2"><label>Nome</label><input id="p_name"></div>
-            <div><label>Preço De</label><input type="number" id="p_old"></div>
-            <div><label>Preço Por</label><input type="number" id="p_price"></div>
-            <div><label>Categoria</label><select id="p_cat"></select></div>
-            <div><label>Imagens (Links separados por vírgula)</label><input id="p_imgs"></div>
-        </div>
-        <div class="mt-6 flex gap-2">
-            <button onclick="salvarProduto()" class="btn-save">Salvar</button>
-            <button onclick="fecharModal()" class="btn text-white border-none">Sair</button>
-        </div>
-    </div>
-</div>
-
-<div id="modalRomaneio" class="fixed inset-0 bg-black/80 z-[100] hidden flex items-center justify-center p-4">
-    <div class="bg-white text-black w-full max-w-lg rounded-xl overflow-hidden shadow-2xl">
-        <div id="printArea" class="p-8"></div>
+<div id="modalRomaneio" class="fixed inset-0 bg-black/90 z-[100] hidden flex items-center justify-center p-4">
+    <div class="bg-white text-black w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl">
+        <div id="printArea" class="p-10"></div>
         <div class="p-4 bg-gray-100 flex gap-2 no-print">
-            <button onclick="window.print()" class="flex-1 bg-black text-white py-3 rounded-lg font-bold">IMPRIMIR</button>
-            <button onclick="fecharModal()" class="flex-1 border py-3 rounded-lg font-bold">FECHAR</button>
+            <button onclick="window.print()" class="flex-1 bg-black text-white py-3 rounded-lg font-bold uppercase text-[10px]">Imprimir Agora</button>
+            <button onclick="document.getElementById('modalRomaneio').classList.add('hidden')" class="flex-1 border py-3 rounded-lg font-bold uppercase text-[10px]">Fechar</button>
         </div>
     </div>
 </div>
 
 <script>
-// CONFIG FIREBASE LUARY
 const firebaseConfig = {
     apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
     databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
@@ -169,152 +114,18 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-let currentProductId = null;
 const fM = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-// --- GESTÃO DE ABAS ---
 function tab(id) {
     document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-    event.target.classList.add('active');
-    
+    if(event) event.target.classList.add('active');
     if(id === 'pedidos') listarPedidos();
-    if(id === 'produtos') listarProdutos();
-    if(id === 'categorias') carregarCategorias();
     if(id === 'promo') carregarPromos();
-    if(id === 'empresa') carregarEmpresa();
 }
 
-// --- EMPRESA ---
-function carregarEmpresa() {
-    db.ref('settings/empresa').once('value', snap => {
-        const d = snap.val() || {};
-        const form = document.getElementById('formEmpresa');
-        Object.keys(d).forEach(k => { if(form[k]) form[k].value = d[k]; });
-    });
-}
-function salvarEmpresa() {
-    const d = Object.fromEntries(new FormData(document.getElementById('formEmpresa')));
-    db.ref('settings/empresa').update(d).then(() => alert("Loja Atualizada!"));
-}
-
-// --- CATEGORIAS ---
-function carregarCategorias() {
-    db.ref('categories').once('value', snap => {
-        const cats = snap.val() || {};
-        const box = document.getElementById('listaCategorias');
-        box.innerHTML = '';
-        Object.keys(cats).forEach(id => {
-            box.innerHTML += `<div class="flex gap-2"><input class="cat-input" data-id="${id}" value="${cats[id].name}"> <button onclick="removerCat('${id}')" class="text-red-500 font-bold px-2">×</button></div>`;
-        });
-    });
-}
-function addCategoria() {
-    const id = prompt("ID da categoria (sem espaços, ex: chaveiros_resina):");
-    if(id) db.ref('categories/' + id).set({ name: id.toUpperCase() }).then(carregarCategorias);
-}
-function salvarCategorias() {
-    const inputs = document.querySelectorAll('.cat-input');
-    inputs.forEach(i => db.ref('categories/' + i.dataset.id).update({ name: i.value }));
-    alert("Categorias Salvas!");
-}
-
-// --- PROMOÇÕES (LOGICA ABELLA INTEGRAL) ---
-function carregarPromos() {
-    db.ref('settings/promoStatus').on('value', snap => {
-        const status = snap.val();
-        const btn = document.getElementById('btnStatusPromo');
-        btn.innerText = status ? 'ATIVA' : 'INATIVA';
-        btn.className = `px-6 py-2 rounded-lg text-[10px] font-bold transition-all ${status ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`;
-    });
-
-    db.ref('categories').once('value', snap => {
-        const cats = snap.val() || {};
-        const box = document.getElementById('configPromos');
-        box.innerHTML = '';
-
-        Object.keys(cats).forEach(id => {
-            const c = cats[id];
-            box.innerHTML += `
-            <div class="card p-6 border-gold/10 bg-gold/5">
-                <h4 class="text-gold font-bold text-xs uppercase mb-4 tracking-widest border-b border-gold/10 pb-2">${c.name}</h4>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <div><label>Texto da Promo</label><input id="p_name_${id}" value="${c.promoName || ''}"></div>
-                    <div><label>Texto da Tag</label><input id="p_tag_${id}" value="${c.promoTag || ''}"></div>
-                    <div><label>% Desconto</label><input type="number" id="p_pct_${id}" value="${c.promoPct || 0}"></div>
-                    <div><label>Cor do Fundo (Hex)</label><input id="p_color_${id}" value="${c.promoColor || '#caa85c'}"></div>
-                    <div><label>Cor do Texto (Hex)</label><input id="p_tcolor_${id}" value="${c.promoTextColor || '#ffffff'}"></div>
-                </div>
-            </div>`;
-        });
-    });
-}
-
-function toggleStatusPromo() {
-    const btn = document.getElementById('btnStatusPromo');
-    const isAtiva = btn.innerText === 'ATIVA';
-    db.ref('settings/promoStatus').set(!isAtiva);
-}
-
-function salvarPromos() {
-    db.ref('categories').once('value', snap => {
-        const cats = snap.val() || {};
-        let updates = {};
-        Object.keys(cats).forEach(id => {
-            updates[`categories/${id}/promoName`] = document.getElementById(`p_name_${id}`).value;
-            updates[`categories/${id}/promoTag`] = document.getElementById(`p_tag_${id}`).value;
-            updates[`categories/${id}/promoPct`] = parseInt(document.getElementById(`p_pct_${id}`).value) || 0;
-            updates[`categories/${id}/promoColor`] = document.getElementById(`p_color_${id}`).value;
-            updates[`categories/${id}/promoTextColor`] = document.getElementById(`p_tcolor_${id}`).value;
-        });
-        db.ref().update(updates).then(() => alert("Promoções Aplicadas!"));
-    });
-}
-
-// --- PRODUTOS ---
-function listarProdutos() {
-    db.ref('products').on('value', snap => {
-        const prods = snap.val() || {};
-        const grid = document.getElementById('gridProdutos');
-        grid.innerHTML = '';
-        Object.keys(prods).forEach(id => {
-            const p = prods[id];
-            grid.innerHTML += `
-            <div class="card p-3 relative">
-                <img src="${p.image?.split(',')[0]}" class="w-full h-32 object-cover rounded-lg">
-                <h3 class="text-[10px] font-bold mt-3 uppercase truncate">${p.name}</h3>
-                <p class="text-gold font-bold text-sm">${fM(p.price || 0)}</p>
-                <div class="flex gap-1 mt-4">
-                    <button onclick="editarProduto('${id}')" class="btn flex-1">EDITAR</button>
-                    <button onclick="removerProduto('${id}')" class="text-red-500 px-2 font-bold">×</button>
-                </div>
-            </div>`;
-        });
-    });
-}
-function abrirModalProduto() { 
-    currentProductId = null; 
-    document.getElementById('modalProduto').classList.remove('hidden'); 
-    db.ref('categories').once('value', snap => {
-        const cats = snap.val() || {};
-        document.getElementById('p_cat').innerHTML = Object.keys(cats).map(id => `<option value="${id}">${cats[id].name}</option>`).join('');
-    });
-}
-function salvarProduto() {
-    const p = {
-        name: document.getElementById('p_name').value,
-        priceOriginal: parseFloat(document.getElementById('p_old').value || 0),
-        price: parseFloat(document.getElementById('p_price').value || 0),
-        category: document.getElementById('p_cat').value,
-        image: document.getElementById('p_imgs').value
-    };
-    if(currentProductId) db.ref('products/' + currentProductId).update(p);
-    else db.ref('products').push(p);
-    fecharModal();
-}
-
-// --- PEDIDOS (REPLICADO ABELLA) ---
+// --- LISTAGEM DE PEDIDOS ---
 function listarPedidos() {
     db.ref('orders').on('value', snap => {
         const peds = snap.val() || {};
@@ -338,36 +149,123 @@ function listarPedidos() {
                     </select>
                 </td>
                 <td class="text-right">
-                    <button onclick="gerarRomaneio('${id}')" class="btn">ROMANEIO</button>
-                    <button onclick="removerPedido('${id}')" class="text-red-500 font-bold ml-2">×</button>
+                    <button onclick="romaneioSimples('${id}')" class="bg-blue-600/20 text-blue-400 px-2 py-1 rounded text-[9px] font-bold mr-1">SIMPLES</button>
+                    <button onclick="romaneioCompleto('${id}')" class="bg-green-600/20 text-green-400 px-2 py-1 rounded text-[9px] font-bold">FINANCEIRO</button>
+                </td>
+                <td class="text-right">
+                    <button onclick="removerPedido('${id}')" class="text-red-500 font-bold ml-4">×</button>
                 </td>
             </tr>`;
         });
     });
 }
 
-function gerarRomaneio(id) {
+// ==========================================
+// ROMANEIO 1: SIMPLES (EXPEDIÇÃO)
+// ==========================================
+function romaneioSimples(id) {
     db.ref('orders/' + id).once('value', snap => {
         const p = snap.val();
         const area = document.getElementById('printArea');
         area.innerHTML = `
-            <div style="text-align:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:20px;">
-                <h2 style="margin:0">LUARY SHOP</h2>
-                <small>COMPROVANTE DE PEDIDO</small>
+            <div style="border: 2px solid #000; padding: 20px; font-family: Arial;">
+                <div style="text-align:center; border-bottom: 2px solid #000; padding-bottom:10px;">
+                    <h2 style="margin:0;">LUARY SHOP - EXPEDIÇÃO</h2>
+                    <p style="margin:5px 0;">PEDIDO: #${id.substring(1,8).toUpperCase()}</p>
+                </div>
+                <div style="margin-top:20px;">
+                    <h3 style="background:#000; color:#fff; padding:5px;">DESTINATÁRIO</h3>
+                    <p style="font-size:16px;"><b>NOME:</b> ${p.cliente.nome}</p>
+                    <p style="font-size:14px;"><b>ENDEREÇO:</b> ${p.endereco.rua}, ${p.endereco.bairro}</p>
+                    <p style="font-size:14px;"><b>CIDADE:</b> ${p.endereco.cidade} - CEP: ${p.endereco.cep}</p>
+                </div>
+                <div style="margin-top:20px;">
+                    <h3 style="background:#000; color:#fff; padding:5px;">ITENS PARA EMBALAGEM</h3>
+                    <table style="width:100%; border-collapse:collapse;">
+                        ${p.itens.map(i => `
+                            <tr style="border-bottom: 1px solid #ccc;">
+                                <td style="padding:10px 0; font-size:16px;">[ ] <b>${i.quantidade}x</b> ${i.name}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                </div>
             </div>
-            <p><b>CLIENTE:</b> ${p.cliente.nome}<br><b>ENDEREÇO:</b> ${p.endereco.rua}, ${p.endereco.bairro} - ${p.endereco.cidade}</p>
-            <div style="margin-top:20px; font-size:12px;">
-                ${p.itens.map(i => `<div style="display:flex; justify-content:space-between"><span>${i.quantidade}x ${i.name}</span><b>${fM(i.price*i.quantidade)}</b></div>`).join('')}
-            </div>
-            <h3 style="text-align:right; margin-top:20px;">TOTAL: ${fM(p.total)}</h3>
         `;
         document.getElementById('modalRomaneio').classList.remove('hidden');
     });
 }
 
-function fecharModal() { document.querySelectorAll('.fixed').forEach(m => m.classList.add('hidden')); }
-function removerPedido(id) { if(confirm("Apagar pedido?")) db.ref('orders/' + id).remove(); }
+// ==========================================
+// ROMANEIO 2: COMPLETO (FINANCEIRO + PRODUTO)
+// ==========================================
+function romaneioCompleto(id) {
+    db.ref('orders/' + id).once('value', snap => {
+        const p = snap.val();
+        const area = document.getElementById('printArea');
+        area.innerHTML = `
+            <div style="font-family: Arial; border: 1px solid #eee; padding: 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #d4af37; padding-bottom:10px;">
+                    <h1 style="margin:0; color:#d4af37;">LUARY SHOP</h1>
+                    <div style="text-align:right">
+                        <p style="margin:0;"><b>Data:</b> ${p.data}</p>
+                        <p style="margin:0;"><b>Pedido:</b> #${id.substring(1,10)}</p>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:20px;">
+                    <div>
+                        <h4 style="border-bottom:1px solid #000;">DADOS DO CLIENTE</h4>
+                        <p><b>Nome:</b> ${p.cliente.nome}<br>
+                        <b>WhatsApp:</b> ${p.cliente.whats}<br>
+                        <b>Endereço:</b> ${p.endereco.rua}, ${p.endereco.bairro}<br>
+                        <b>Cidade:</b> ${p.endereco.cidade} - ${p.endereco.cep}</p>
+                    </div>
+                    <div>
+                        <h4 style="border-bottom:1px solid #000;">RESUMO FINANCEIRO</h4>
+                        <p><b>Forma de Pagto:</b> ${p.pagamento || 'PIX/Cartão'}<br>
+                        <b>Status:</b> ${p.status}<br>
+                        <b>Envio:</b> Transportadora/Correios</p>
+                    </div>
+                </div>
+
+                <table style="width:100%; margin-top:30px; border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f4f4f4;">
+                            <th style="padding:10px; text-align:left;">Produto</th>
+                            <th style="padding:10px; text-align:center;">Qtd</th>
+                            <th style="padding:10px; text-align:right;">Unitário</th>
+                            <th style="padding:10px; text-align:right;">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${p.itens.map(i => `
+                            <tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:10px;">${i.name}</td>
+                                <td style="padding:10px; text-align:center;">${i.quantidade}</td>
+                                <td style="padding:10px; text-align:right;">${fM(i.price)}</td>
+                                <td style="padding:10px; text-align:right;">${fM(i.price * i.quantidade)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <div style="margin-top:30px; text-align:right; border-top:2px solid #000; padding-top:10px;">
+                    <p style="font-size:14px; margin:0;">SUBTOTAL: ${fM(p.total)}</p>
+                    <p style="font-size:14px; margin:0;">DESCONTOS: R$ 0,00</p>
+                    <h2 style="margin:5px 0;">TOTAL PAGO: ${fM(p.total)}</h2>
+                </div>
+                
+                <div style="margin-top:40px; text-align:center; font-size:10px; color:#666;">
+                    <p>Obrigado por sua compra! ✨ luaryshop.com.br</p>
+                </div>
+            </div>
+        `;
+        document.getElementById('modalRomaneio').classList.remove('hidden');
+    });
+}
+
 function atualizarStatus(id, s) { db.ref('orders/'+id).update({status: s}); }
+function removerPedido(id) { if(confirm("Apagar pedido?")) db.ref('orders/' + id).remove(); }
 
 window.onload = () => tab('pedidos');
 </script>
