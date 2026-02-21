@@ -7,74 +7,55 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Montserrat', sans-serif; background: #fdfdfd; }
+        body { font-family: 'Montserrat', sans-serif; background: #fdfdfd; color: #1a2a3a; }
+        .serif { font-family: 'Playfair Display', serif; }
         .item-cart { background: white; border-radius: 12px; border: 1px solid #eee; margin-bottom: 10px; display: flex; align-items: center; padding: 10px; }
     </style>
 </head>
 <body class="p-6">
     <div class="max-w-2xl mx-auto">
-        <a href="index.html" class="text-xs font-bold uppercase text-gray-400 hover:text-navy">← Voltar para a loja</a>
+        <a href="index.html" class="text-xs font-bold uppercase text-gray-400">← Voltar para a loja</a>
         <h1 class="serif text-3xl my-6">Seu Carrinho</h1>
-
         <div id="lista-carrinho"></div>
-
         <div class="mt-8 border-t pt-6">
-            <div class="flex justify-between text-xl font-bold mb-6">
-                <span>Total:</span>
-                <span id="total-final">R$ 0,00</span>
-            </div>
-            
-            <input type="text" id="nome-cliente" placeholder="Seu nome completo" class="w-full p-4 border rounded-xl mb-3 outline-none focus:border-[#c5a059]">
-            
-            <button onclick="enviarWhatsApp()" class="w-full bg-green-600 text-white font-bold p-4 rounded-xl shadow-lg hover:bg-green-700 transition">
-                Finalizar Pedido via WhatsApp
-            </button>
+            <div class="flex justify-between text-xl font-bold mb-6"><span>Total:</span><span id="total-final">R$ 0,00</span></div>
+            <input type="text" id="nome-cliente" placeholder="Seu nome completo" class="w-full p-4 border rounded-xl mb-3 outline-none">
+            <button onclick="enviarWhatsApp()" class="w-full bg-green-600 text-white font-bold p-4 rounded-xl shadow-lg">Finalizar via WhatsApp</button>
         </div>
     </div>
-
     <script>
+        const fM = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         function renderCart() {
             const cart = JSON.parse(localStorage.getItem('luary_cart') || '[]');
             const container = document.getElementById('lista-carrinho');
             let total = 0;
-            container.innerHTML = cart.length ? '' : '<p class="text-gray-400">Seu carrinho está vazio.</p>';
-
+            container.innerHTML = cart.length ? '' : '<p>Vazio</p>';
             cart.forEach((item, index) => {
                 total += parseFloat(item.price);
-                container.innerHTML += `
-                    <div class="item-cart">
-                        <img src="${item.image}" class="w-16 h-16 rounded object-cover">
-                        <div class="ml-4 flex-1">
-                            <h4 class="text-xs font-bold uppercase">${item.name}</h4>
-                            <p class="text-sm text-[#c5a059] font-bold">${item.price.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</p>
-                        </div>
-                        <button onclick="remover(${index})" class="text-red-400 text-xs font-bold p-2">Remover</button>
-                    </div>`;
+                container.innerHTML += `<div class="item-cart">
+                    <img src="${item.image}" class="w-16 h-16 rounded object-cover">
+                    <div class="ml-4 flex-1"><h4 class="text-xs font-bold uppercase">${item.name}</h4><p class="text-sm text-[#c5a059] font-bold">${fM(item.price)}</p></div>
+                    <button onclick="remover(${index})" class="text-red-400 text-xs font-bold">Remover</button>
+                </div>`;
             });
-            document.getElementById('total-final').innerText = total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+            document.getElementById('total-final').innerText = fM(total);
         }
-
         function remover(index) {
             let cart = JSON.parse(localStorage.getItem('luary_cart') || '[]');
             cart.splice(index, 1);
             localStorage.setItem('luary_cart', JSON.stringify(cart));
             renderCart();
         }
-
         function enviarWhatsApp() {
             const cart = JSON.parse(localStorage.getItem('luary_cart') || '[]');
             const nome = document.getElementById('nome-cliente').value;
-            if(!nome || cart.length === 0) return alert("Preencha seu nome e adicione itens!");
-
-            let msg = `*Novo Pedido - Luary Shop*%0A%0A`;
-            msg += `*Cliente:* ${nome}%0A%0A`;
+            if(!nome || !cart.length) return alert("Preencha os dados!");
+            let msg = `*Pedido Luary Shop*%0A*Cliente:* ${nome}%0A%0A`;
             cart.forEach(i => msg += `• ${i.name} - R$ ${i.price}%0A`);
             msg += `%0A*Total:* ${document.getElementById('total-final').innerText}`;
-            
-            const fone = "5500000000000"; // COLOQUE SEU NUMERO AQUI
+            const fone = "5500000000000"; // TROQUE PELO SEU NÚMERO
             window.open(`https://wa.me/${fone}?text=${msg}`);
         }
-
         window.onload = renderCart;
     </script>
 </body>
