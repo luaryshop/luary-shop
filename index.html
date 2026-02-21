@@ -76,54 +76,77 @@
     }
 
 function verProdutos(catId, catName) {
-        db.ref('products').once('value', snap => {
-            const grid = document.getElementById('grid-content');
-            grid.innerHTML = '';
-            const promoAtiva = configLoja.promocoes?.ativa || false;
+    db.ref('products').once('value', snap => {
+        const grid = document.getElementById('grid-content');
+        grid.innerHTML = '';
+        const promoAtiva = configLoja.promocoes?.ativa || false;
 
-            snap.forEach(s => {
-                const p = s.val();
-                if(p.category === catId) {
-                    // Trata múltiplas imagens
-                    const fotos = p.image.split(',').map(img => img.trim());
+        snap.forEach(s => {
+            const p = s.val();
+            if(p.category === catId) {
+                // Trata múltiplas imagens (separadas por vírgula no admin)
+                const fotos = p.image.split(',').map(img => img.trim());
+                
+                db.ref(`categories/${catId}`).once('value', catSnap => {
+                    const catData = catSnap.val() || {};
                     
-                    db.ref(`categories/${catId}`).once('value', catSnap => {
-                        const catData = catSnap.val() || {};
-                        let desconto = promoAtiva ? (p.promoPct || catData.promoPct || 0) : 0;
-                        const precoComDesconto = p.price * (1 - (desconto/100));
-                        const numParcelas = configLoja.empresa?.parcelas || 1;
+                    // Lógica de Desconto: Prioriza o desconto individual do produto, se não houver, usa o da categoria
+                    let desconto = promoAtiva ? (p.promoPct || catData.promoPct || 0) : 0;
+                    
+                    const precoOriginal = p.price;
+                    const precoComDesconto = precoOriginal * (1 - (desconto/100));
+                    const numParcelas = configLoja.empresa?.parcelas || 1;
+                    const descPix = configLoja.empresa?.descPix || 0;
+                    const precoPix = precoComDesconto * (1 - (descPix/100));
 
-                        let carouselHtml = '';
-                        fotos.forEach(f => {
-                            carouselHtml += `<div class="carousel-item"><img src="${f}"></div>`;
-                        });
+                    let carouselHtml = '';
+                    fotos.forEach(f => {
+                        carouselHtml += `<div class="carousel-item"><img src="${f}"></div>`;
+                    });
 
-                        grid.innerHTML += `
-                            <div class="card-luary p-4">
-                                ${desconto > 0 ? `
-                                    <span class="badge-promo" style="background:${catData.promoColor || '#d4af37'}; color:${catData.promoTextColor || '#ffffff'}">
-                                        ${catData.promoTag || 'OFERTA'}
-                                    </span>` : ''}
+                    grid.innerHTML += `
+                        <div class="card-luary p-4">
+                            ${desconto > 0 ? `
+                                <span class="badge-promo" style="background:${catData.promoColor || '#d4af37'}; color:${catData.promoTextColor || '#ffffff'}">
+                                    ${catData.promoTag || 'OFERTA'}
+                                </span>` : ''}
 
-                                <div class="carousel-container">${carouselHtml}</div>
-                                ${fotos.length > 1 ? '<div class="indicator"><div class="dot"></div><div class="dot"></div></div>' : ''}
+                            <div class="carousel-container">${carouselHtml}</div>
+                            
+                            ${fotos.length > 1 ? '<div class="indicator"><div class="dot"></div><div class="dot"></div></div>' : ''}
+                            
+                            <div class="flex-1 mt-2 px-1">
+                                <h3 class="text-[11px] font-bold uppercase h-8 overflow-hidden leading-tight text-navy">${p.name}</h3>
                                 
-                                <div class="flex-1 mt-2">
-                                    <h3 class="text-[11px] font-bold uppercase h-8 overflow-hidden">${p.name}</h3>
-                                    <div class="mb-2">
-                                        ${desconto > 0 ? `<span class="text-[10px] line-through text-gray-400">${p.price.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>` : ''}
-                                        <div class="text-lg font-black text-navy">${precoComDesconto.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</div>
-                                        <div class="text-[9px] text-gray-500">${numParcelas}x de ${(precoComDesconto/numParcelas).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</div>
+                                <div class="mb-3 mt-1">
+                                    ${desconto > 0 ? `
+                                        <span class="text-[10px] line-through text-gray-400 block mb-[-4px]">
+                                            ${precoOriginal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                                        </span>` : ''}
+                                    
+                                    <div class="text-xl font-black text-navy">
+                                        ${precoComDesconto.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                                    </div>
+                                    
+                                    <div class="text-[10px] font-medium text-gray-500">
+                                        ou ${numParcelas}x de ${(precoComDesconto/numParcelas).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                                    </div>
+
+                                    <div class="text-[10px] font-bold text-green-600 mt-1 bg-green-50 inline-block px-2 py-0.5 rounded border border-green-100">
+                                        ✨ ${precoPix.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} no PIX
                                     </div>
                                 </div>
-                                <button onclick='addCart(${JSON.stringify({...p, price: precoComDesconto, id: s.key})})' class="btn-add">Eu quero!</button>
-                            </div>`;
-                    });
-                }
-            });
-        });
-    }
+                            </div>
 
+                            <button onclick='addCart(${JSON.stringify({...p, price: precoComDesconto, id: s.key})})' class="btn-add">
+                                Eu quero!
+                            </button>
+                        </div>`;
+                });
+            }
+        });
+    });
+}
     function addCart(p) {
         let cart = JSON.parse(localStorage.getItem('luary_cart') || '[]');
         cart.push(p);
