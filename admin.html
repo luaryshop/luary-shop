@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Painel Administrativo • Abella Joias</title>
+    <title>Painel Administrativo • Luary Shop</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
@@ -59,7 +59,7 @@
 <body>
 
 <header class="p-5 text-center text-xl font-bold bg-black border-b border-[#222] text-[#caa85c] tracking-widest uppercase">
-    Abella Joias • Gestão Total
+    Luary Shop • Gestão Total
 </header>
 
 <nav class="flex gap-2 p-2 bg-[#111] sticky top-0 z-50 overflow-x-auto">
@@ -417,14 +417,14 @@ function excluirPedido(id) { if(confirm("Excluir pedido permanentemente?")) db.r
 function fecharEditorPedido() { document.getElementById('editorPedido').classList.add('hidden'); }
 function fecharModal() { document.getElementById('mainModal').classList.remove('active'); }
 
-/* IMPRESSÃO ROMANEIO ATUALIZADA - ABELLA JOIAS LUXO */
+/* IMPRESSÃO ROMANEIO ATUALIZADA - LUARY SHOP - SEMIJOIAS E PRESENTES */
 function imprimirRomaneio(id, tipo) {
     db.ref('orders/' + id).once('value', sPed => {
         const p = sPed.val();
         if (!p) return alert("Pedido não encontrado!");
 
         db.ref('settings/empresa').once('value', sEmp => {
-            const emp = sEmp.val() || { nome: "Abella Joias", whats: "---" };
+            const emp = sEmp.val() || { nome: "Luary Shop", whats: "---" };
             const itens = Array.isArray(p.itens) ? p.itens : Object.values(p.itens || {});
             
             const isFin = [2, 3, 5, 6].includes(tipo); 
@@ -441,7 +441,7 @@ function imprimirRomaneio(id, tipo) {
             <div style="padding:8mm; font-family:Arial, sans-serif; color:#000; background:#fff;">
                 <div style="text-align:center; border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 15px;">
                     <h1 style="margin:0; font-size:22px; text-transform:uppercase; letter-spacing:3px;">${emp.nome}</h1>
-                    <div style="font-size:9px; font-weight:bold; color: #444;">ATACADO DE JOIAS NO BRUTO | ${emp.whats}</div>
+                    <div style="font-size:9px; font-weight:bold; color: #444;">SEMIJOIAS E PRESENTES | ${emp.whats}</div>
                 </div>
 
                 <table style="width:100%; border-collapse: separate; border-spacing: 5px 0; margin-bottom:15px;">
