@@ -164,86 +164,55 @@ function carregarConfig() {
 function carregarCarrinho() {
     let box = document.getElementById('listaItens');
     box.innerHTML = '';
-
-    let bruto = 0;      // Soma dos preços sem desconto
-    let comPromo = 0;   // Soma dos preços já com desconto da etiqueta
+    let bruto = 0;
     let pecas = 0;
-    let peso = 0;
 
     if (carrinho.length === 0) {
-        box.innerHTML = `<p class="text-center text-gray-400 py-10">Seu carrinho está vazio.</p>`;
+        box.innerHTML = `<p class="text-center text-gray-400 py-10">Carrinho vazio.</p>`;
+        return;
     }
 
     carrinho.forEach((item, index) => {
         let q = parseInt(item.quantidade) || 1;
-        
-        // Identifica os preços (Garante que se não houver desconto, os dois sejam iguais)
-        let pOrig = parseFloat(item.precoOriginal || item.price || 0);
-        let pFinal = parseFloat(item.price || 0);
-
-        bruto += (pOrig * q);
-        comPromo += (pFinal * q);
+        let preco = parseFloat(item.price || 0);
+        bruto += (preco * q);
         pecas += q;
-        peso += (parseFloat(item.weight || 0) * q);
 
         box.innerHTML += `
         <div class="flex items-center gap-3 py-4 border-b border-gray-50">
-            <img src="${item.image.split(',')[0]}" class="w-14 h-14 object-cover rounded-lg border border-gray-100">
+            <img src="${item.image}" class="w-14 h-14 object-cover rounded-lg border border-gray-100" onerror="this.src='https://via.placeholder.com/150'">
             <div class="flex-1">
-                <h3 class="text-[10px] font-bold text-navy uppercase leading-tight">${item.name}</h3>
+                <h3 class="text-[10px] font-bold text-[#1a2a3a] uppercase leading-tight">${item.name}</h3>
                 <div class="flex items-center gap-2 mt-2">
-                    <button onclick="altQtd(${index},-1)" class="w-8 h-8 bg-gray-100 rounded-lg">-</button>
-                    <input type="number" value="${q}" class="w-10 text-center bg-transparent text-xs font-bold" readonly>
-                    <button onclick="altQtd(${index},1)" class="w-8 h-8 bg-gray-100 rounded-lg">+</button>
+                    <button onclick="altQtd(${index},-1)" class="w-7 h-7 bg-gray-100 rounded-lg">-</button>
+                    <span class="text-xs font-bold">${q}</span>
+                    <button onclick="altQtd(${index},1)" class="w-7 h-7 bg-gray-100 rounded-lg">+</button>
                 </div>
             </div>
             <div class="text-right">
-                ${pOrig > pFinal ? `<span class="text-gray-400 line-through text-[9px] block">${fM(pOrig * q)}</span>` : ''}
-                <b class="text-accent text-sm">${fM(pFinal * q)}</b>
+                <b class="text-[#d4af37] text-sm">${fM(preco * q)}</b>
             </div>
         </div>`;
     });
 
-    // CÁLCULOS FINAIS
-    const economiaPromo = bruto - comPromo;
-    const descPixPct = configLoja.empresa?.descPix || 0;
-    const descPixValor = (pagamento === 'Pix') ? (comPromo * (descPixPct / 100)) : 0;
-    
-    // O total final leva em conta o preço promocional + frete - desconto do pix
-    const totalFinal = (comPromo - descPixValor) + (window.valorFreteSelecionado || 0);
+    const descPixPct = 5; // Ajuste conforme seu painel
+    const descPixValor = (pagamento === 'Pix') ? (bruto * (descPixPct / 100)) : 0;
+    const totalFinal = (bruto - descPixValor) + (window.valorFreteSelecionado || 0);
 
-    // ATUALIZAÇÃO DA TELA
+    // ESCREVER NO HTML (IDs da Abella Joias)
     document.getElementById('subtotalTxt').innerText = fM(bruto);
     document.getElementById('totalPecas').innerText = pecas;
-    document.getElementById('totalSkus').innerText = carrinho.length;
-
-    // Exibe Desconto da Etiqueta (Se o preço do item baixou)
-    if (economiaPromo > 0) {
-        document.getElementById('linhaDescontoPromo').classList.remove('hidden');
-        document.getElementById('valorDescontoPromo').innerText = "- " + fM(economiaPromo);
-    } else {
-        document.getElementById('linhaDescontoPromo').classList.add('hidden');
-    }
-
-    // Exibe Desconto do PIX ou Parcelamento
-    const linhaCondicao = document.getElementById('linhaCondicao');
-    if (pagamento === 'Pix' && descPixValor > 0) {
-        linhaCondicao.classList.remove('hidden');
-        document.getElementById('labelCondicao').innerText = "Desconto Pix (" + descPixPct + "%)";
+    
+    if (descPixValor > 0) {
+        document.getElementById('linhaCondicao').classList.remove('hidden');
+        document.getElementById('labelCondicao').innerText = "Desconto Pix";
         document.getElementById('valorCondicao').innerText = "- " + fM(descPixValor);
-    } else if (pagamento === 'Cartão') {
-        linhaCondicao.classList.remove('hidden');
-        let parcelas = configLoja.empresa?.parcelas || 1;
-        document.getElementById('labelCondicao').innerText = parcelas + "x no Cartão";
-        document.getElementById('valorCondicao').innerText = fM(totalFinal / parcelas) + " cada";
     } else {
-        linhaCondicao.classList.add('hidden');
+        document.getElementById('linhaCondicao').classList.add('hidden');
     }
 
     document.getElementById('totalTxt').innerText = fM(totalFinal);
-
-    // Guarda os dados para o WhatsApp
-    window.resumoFinal = { subtotal: bruto, total: totalFinal, economia: economiaPromo + descPixValor };
+    window.resumoFinal = { subtotal: bruto, total: totalFinal };
 }
 function altQtd(i, d) {
     carrinho[i].quantidade = (carrinho[i].quantidade || 1) + d;
