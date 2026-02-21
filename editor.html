@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Editor Full Master v3.2 • Luary Shop</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        body { background:#0b0b0b; color:#eee; font-family:'Poppins',sans-serif; }
+        .input-dark{background:#1a1a1a;border:1px solid #333;color:#fff;padding:6px;border-radius:6px;width:100%;font-size:10px}
+        .input-dark:focus{border-color:#caa85c;outline:none;background:#222}
+        .edit-sku{color:#caa85c;font-family:monospace;font-weight:bold;text-transform:uppercase}
+        tr.is-paused{opacity:.4;background:#2a1010!important}
+        .btn-status{font-size:9px;font-weight:800;text-transform:uppercase;padding:4px;border-radius:4px;width:50px}
+        .status-on{background:#15803d;color:#fff}
+        .status-off{background:#b91c1c;color:#fff}
+        .sticky-header th{position:sticky;top:0;background:#0b0b0b;z-index:10;border-bottom:2px solid #caa85c;font-size:9px}
+        .img-preview{width:35px;height:35px;object-fit:contain;background:#222;border-radius:4px;border:1px solid #444}
+        .img-error{border-color:#ef4444;background:#451a1a}
+        .highlight-var{border:1px solid #caa85c!important;background:#262116!important}
+    </style>
+</head>
+
+<body class="p-2">
+
+<div class="max-w-full mx-auto">
+
+<header class="bg-[#141414] p-4 rounded-xl border border-[#2a2a2a] shadow-xl mb-4 flex flex-wrap gap-4 justify-between items-center">
+    <div>
+        <h1 class="text-xl font-bold text-[#caa85c]">Editor Full Master v3.2 • Luary Shop</h1>
+        <p class="text-[9px] text-gray-400 uppercase tracking-widest">Controle de Produtos e Imagens</p>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+        <button onclick="criarNovoProduto()" class="bg-white text-black font-black px-4 py-2 rounded-lg text-[10px]">+ NOVO</button>
+        <select id="filtroCat" class="bg-black border border-[#333] px-2 py-2 rounded-lg text-[10px] text-white">
+            <option value="">Todas Categorias</option>
+        </select>
+        <input id="filtroSku" placeholder="SKU ou Nome..." class="bg-black border border-[#333] px-2 py-2 rounded-lg text-[10px] w-32 text-white">
+        <button onclick="carregarProdutos()" class="bg-[#caa85c] text-black font-bold px-4 py-2 rounded-lg text-[10px]">🔍 BUSCAR</button>
+        <button onclick="sincronizarFotosInteligente()" class="bg-blue-600 text-white font-bold px-4 py-2 rounded-lg text-[10px]">🔄 AUTO-SYNC</button>
+    </div>
+</header>
+
+<div class="bg-[#141414] border border-[#2a2a2a] rounded-xl overflow-hidden">
+<div class="overflow-x-auto" style="max-height:75vh">
+
+<table class="w-full text-left text-[10px]">
+<thead class="sticky-header">
+<tr class="text-[#caa85c] uppercase">
+<th>Status</th>
+<th>Imagem</th>
+<th>SKU</th>
+<th>Nome</th>
+<th>Peso</th>
+<th>Categoria</th>
+<th>Variação</th>
+<th>Opções</th>
+<th>Preço</th>
+<th>Ações</th>
+</tr>
+</thead>
+
+<tbody id="tabelaCorpo">
+<tr><td colspan="10" class="p-20 text-center text-gray-500">Busque produtos ou crie um novo.</td></tr>
+</tbody>
+
+</table>
+</div>
+</div>
+
+<div class="mt-4 flex justify-between items-center bg-[#141414] p-4 rounded-xl border border-[#2a2a2a]">
+<div id="statusInfo" class="text-[10px] text-gray-400">Status: Pronto.</div>
+<button onclick="salvarAlteracoes()" class="bg-green-600 px-12 py-3 rounded-lg font-black text-xs uppercase">💾 SALVAR TUDO</button>
+</div>
+
+</div>
+
+<script>
+/* FIREBASE — LUARY SHOP */
+const firebaseConfig = {
+    apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
+    databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
+};
+if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let categoriasCache = {};
+
+async function carregarCategorias(){
+    const snap = await db.ref('categories').once('value');
+    categoriasCache = snap.val() || {};
+    let html = '<option value="">Todas Categorias</option>';
+    Object.entries(categoriasCache).forEach(([id,c])=>{
+        html += `<option value="${id}">${c.name}</option>`;
+    });
+    document.getElementById('filtroCat').innerHTML = html;
+}
+
+function criarLinhaHTML(id,p){
+    let cats='';
+    Object.entries(categoriasCache).forEach(([cid,c])=>{
+        cats+=`<option value="${cid}" ${p.category===cid?'selected':''}>${c.name}</option>`;
+    });
+
+    return `
+<tr data-id="${id}" class="border-b border-[#222] ${p.paused?'is-paused':''}">
+<td><button class="btn-status ${p.paused?'status-off':'status-on'}" onclick="toggleStatus(this)">${p.paused?'OFF':'ON'}</button></td>
+<td>
+<div class="flex gap-2 items-center">
+<img src="${p.image||''}" class="img-preview row-img" onerror="this.classList.add('img-error')">
+<input class="input-dark edit-img" value="${p.image||''}" onchange="atualizarPreview(this)">
+</div>
+</td>
+<td><input class="input-dark edit-sku" value="${p.sku||''}"></td>
+<td><input class="input-dark edit-name" value="${p.name||''}"></td>
+<td><input class="input-dark edit-peso text-center" value="${p.peso||0}"></td>
+<td><select class="input-dark edit-cat">${cats}</select></td>
+<td>
+<select class="input-dark edit-varTipo" onchange="liberarCampoLista(this)">
+<option value="">Padrão</option>
+<option value="Aro" ${p.variacaoTipo==='Aro'?'selected':''}>Aro</option>
+<option value="Lista" ${p.variacaoTipo==='Lista'?'selected':''}>Lista</option>
+</select>
+</td>
+<td><input class="input-dark edit-opcoes ${p.variacaoTipo==='Lista'?'highlight-var':'opacity-20 pointer-events-none'}" value="${p.opcoesPersonalizadas||''}"></td>
+<td><input class="input-dark edit-precoFinal" type="number" step="0.01" value="${p.precoFinal||p.price||0}"></td>
+<td class="text-center">
+<button onclick="salvarLinhaUnica(this)" class="bg-green-600 p-2 rounded">✅</button>
+<button onclick="deletarProduto('${id}')" class="bg-red-900 p-2 rounded">🗑</button>
+</td>
+</tr>`;
+}
+
+function atualizarPreview(input){
+    const img=input.closest('td').querySelector('.row-img');
+    img.src=input.value||'';
+    img.classList.remove('img-error');
+}
+
+function criarNovoProduto(){
+    const ref=db.ref('products').push();
+    const p={sku:'SKU-TEMP',name:'Novo Produto',peso:0,price:0,precoFinal:0,image:'',paused:true};
+    const corpo=document.getElementById('tabelaCorpo');
+    if(corpo.innerText.includes('Busque')) corpo.innerHTML='';
+    corpo.insertAdjacentHTML('afterbegin',criarLinhaHTML(ref.key,p));
+}
+
+function carregarProdutos(){
+    const filtro=document.getElementById('filtroSku').value.toUpperCase();
+    const cat=document.getElementById('filtroCat').value;
+    const corpo=document.getElementById('tabelaCorpo');
+    corpo.innerHTML='<tr><td colspan="10" class="p-10 text-center text-[#caa85c]">BUSCANDO...</td></tr>';
+
+    db.ref('products').once('value',snap=>{
+        let html='',c=0;
+        snap.forEach(ch=>{
+            const p=ch.val();
+            if((!filtro||p.sku?.toUpperCase().includes(filtro)||p.name?.toUpperCase().includes(filtro)) && (!cat||p.category===cat)){
+                html+=criarLinhaHTML(ch.key,p); c++;
+            }
+        });
+        corpo.innerHTML=html||'<tr><td colspan="10" class="p-10 text-center text-red-500">Nada encontrado.</td></tr>';
+        document.getElementById('statusInfo').innerText=`Total: ${c} produtos`;
+    });
+}
+
+function sincronizarFotosInteligente(){
+    const ext=prompt("Extensão das fotos?","png");
+    if(!ext) return;
+    const dominio="luary-shop.firebasestorage.app";
+    document.querySelectorAll('#tabelaCorpo tr[data-id]').forEach(tr=>{
+        const sku=tr.querySelector('.edit-sku').value;
+        if(sku){
+            const link=`https://firebasestorage.googleapis.com/v0/b/${dominio}/o/produtos%2F${sku}.${ext}?alt=media`;
+            const input=tr.querySelector('.edit-img');
+            input.value=link;
+            atualizarPreview(input);
+        }
+    });
+}
+
+function salvarLinhaUnica(btn){
+    const tr=btn.closest('tr'),id=tr.dataset.id;
+    const preco=parseFloat(tr.querySelector('.edit-precoFinal').value)||0;
+    db.ref('products/'+id).update({
+        sku:tr.querySelector('.edit-sku').value.toUpperCase(),
+        name:tr.querySelector('.edit-name').value,
+        peso:tr.querySelector('.edit-peso').value,
+        category:tr.querySelector('.edit-cat').value,
+        variacaoTipo:tr.querySelector('.edit-varTipo').value,
+        opcoesPersonalizadas:tr.querySelector('.edit-opcoes').value,
+        price:preco,precoFinal:preco,
+        image:tr.querySelector('.edit-img').value,
+        paused:tr.querySelector('.btn-status').classList.contains('status-off')
+    });
+}
+
+function salvarAlteracoes(){
+    const up={};
+    document.querySelectorAll('#tabelaCorpo tr[data-id]').forEach(tr=>{
+        const id=tr.dataset.id;
+        const preco=parseFloat(tr.querySelector('.edit-precoFinal').value)||0;
+        up[`products/${id}`]={
+            sku:tr.querySelector('.edit-sku').value.toUpperCase(),
+            name:tr.querySelector('.edit-name').value,
+            peso:tr.querySelector('.edit-peso').value,
+            category:tr.querySelector('.edit-cat').value,
+            variacaoTipo:tr.querySelector('.edit-varTipo').value,
+            opcoesPersonalizadas:tr.querySelector('.edit-opcoes').value,
+            price:preco,precoFinal:preco,
+            image:tr.querySelector('.edit-img').value,
+            paused:tr.querySelector('.btn-status').classList.contains('status-off')
+        };
+    });
+    db.ref().update(up).then(()=>alert("✅ Produtos atualizados!"));
+}
+
+function liberarCampoLista(sel){
+    const i=sel.closest('tr').querySelector('.edit-opcoes');
+    sel.value==='Lista'?i.classList.remove('opacity-20','pointer-events-none'):i.classList.add('opacity-20','pointer-events-none');
+}
+
+function toggleStatus(btn){
+    btn.classList.toggle('status-on');
+    btn.classList.toggle('status-off');
+    btn.innerText=btn.classList.contains('status-off')?'OFF':'ON';
+    btn.closest('tr').classList.toggle('is-paused');
+}
+
+function deletarProduto(id){
+    if(confirm("Excluir produto?")) db.ref('products/'+id).remove().then(carregarProdutos);
+}
+
+carregarCategorias();
+</script>
+
+</body>
+</html>
