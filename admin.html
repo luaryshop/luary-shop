@@ -210,13 +210,33 @@ function carregarEmpresa() {
 }
 
 function salvarEmpresa() {
-    db.ref('settings/empresa').update({
-        nome: document.getElementById('empNome').value,
-        subtitulo: document.getElementById('empSub').value,
-        whats: document.getElementById('empWhats').value,
-        descPix: parseInt(document.getElementById('empDescPix').value) || 0,
-        parcelas: parseInt(document.getElementById('empParcelas').value) || 1
-    }).then(() => alert('Configurações da Loja salvas!'));
+    // Pegando os valores dos campos
+    const nome = document.getElementById('empNome').value;
+    const sub = document.getElementById('empSub').value;
+    const whats = document.getElementById('empWhats').value;
+    const pix = parseInt(document.getElementById('empDescPix').value) || 0;
+    const parc = parseInt(document.getElementById('empParcelas').value) || 1;
+
+    if(!nome) { alert("Digite o nome da loja!"); return; }
+
+    const dados = {
+        nome: nome,
+        subtitulo: sub,
+        whats: whats,
+        descPix: pix,
+        parcelas: parc
+    };
+
+    // O comando .set FORÇA a criação da pasta no banco
+    db.ref('settings/empresa').set(dados)
+    .then(() => {
+        alert('✅ Árvore criada com sucesso! Verifique seu Firebase.');
+        console.log("Sucesso ao enviar para o Firebase:", dados);
+    })
+    .catch((error) => {
+        alert('❌ Erro de permissão! Verifique as Rules do Firebase.');
+        console.error("Erro detalhado:", error);
+    });
 }
 
 /* --- AUXILIARES --- */
