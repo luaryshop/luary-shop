@@ -160,107 +160,141 @@ function listarPedidos() {
     });
 }
 
-// ==========================================
-// ROMANEIO 1: SIMPLES (EXPEDIÇÃO)
-// ==========================================
-function romaneioSimples(id) {
-    db.ref('orders/' + id).once('value', snap => {
-        const p = snap.val();
-        const area = document.getElementById('printArea');
-        area.innerHTML = `
-            <div style="border: 2px solid #000; padding: 20px; font-family: Arial;">
-                <div style="text-align:center; border-bottom: 2px solid #000; padding-bottom:10px;">
-                    <h2 style="margin:0;">LUARY SHOP - EXPEDIÇÃO</h2>
-                    <p style="margin:5px 0;">PEDIDO: #${id.substring(1,8).toUpperCase()}</p>
-                </div>
-                <div style="margin-top:20px;">
-                    <h3 style="background:#000; color:#fff; padding:5px;">DESTINATÁRIO</h3>
-                    <p style="font-size:16px;"><b>NOME:</b> ${p.cliente.nome}</p>
-                    <p style="font-size:14px;"><b>ENDEREÇO:</b> ${p.endereco.rua}, ${p.endereco.bairro}</p>
-                    <p style="font-size:14px;"><b>CIDADE:</b> ${p.endereco.cidade} - CEP: ${p.endereco.cep}</p>
-                </div>
-                <div style="margin-top:20px;">
-                    <h3 style="background:#000; color:#fff; padding:5px;">ITENS PARA EMBALAGEM</h3>
-                    <table style="width:100%; border-collapse:collapse;">
-                        ${p.itens.map(i => `
-                            <tr style="border-bottom: 1px solid #ccc;">
-                                <td style="padding:10px 0; font-size:16px;">[ ] <b>${i.quantidade}x</b> ${i.name}</td>
-                            </tr>
-                        `).join('')}
-                    </table>
-                </div>
-            </div>
-        `;
-        document.getElementById('modalRomaneio').classList.remove('hidden');
-    });
-}
+function imprimirRomaneio(id, tipo) {
+    db.ref('orders/' + id).once('value', sPed => {
+        const p = sPed.val();
+        if (!p) return alert("Pedido não encontrado!");
 
-// ==========================================
-// ROMANEIO 2: COMPLETO (FINANCEIRO + PRODUTO)
-// ==========================================
-function romaneioCompleto(id) {
-    db.ref('orders/' + id).once('value', snap => {
-        const p = snap.val();
-        const area = document.getElementById('printArea');
-        area.innerHTML = `
-            <div style="font-family: Arial; border: 1px solid #eee; padding: 20px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #d4af37; padding-bottom:10px;">
-                    <h1 style="margin:0; color:#d4af37;">LUARY SHOP</h1>
-                    <div style="text-align:right">
-                        <p style="margin:0;"><b>Data:</b> ${p.data}</p>
-                        <p style="margin:0;"><b>Pedido:</b> #${id.substring(1,10)}</p>
+        db.ref('settings/empresa').once('value', sEmp => {
+            const emp = sEmp.val() || { nome: "Luary Shop", whats: "---" };
+            const itens = Array.isArray(p.itens) ? p.itens : Object.values(p.itens || {});
+            
+            // Definições de Tipo de Romaneio
+            const isFin = [2, 3, 5, 6].includes(tipo); // Com valores financeiros
+            const comFoto = [3, 6].includes(tipo);    // Com foto do produto
+            const emGrid = tipo >= 4;                  // Layout em Grid (Cartões)
+
+            // Cálculos Financeiros
+            const subtotal = itens.reduce((acc, i) => acc + ((Number(i.price) || 0) * (Number(i.quantidade) || 0)), 0);
+            const descPromo = Number(p.descontoPromo || 0);
+            const descPix = Number(p.descontoPix || 0);
+            const frete = Number(p.frete || 0);
+            const totalFinal = subtotal - descPromo - descPix + frete;
+
+            let html = `
+            <div style="padding:8mm; font-family:'Inter', Arial, sans-serif; color:#000; background:#fff; min-height:280mm;">
+                <div style="text-align:center; border-bottom: 3px solid #d4af37; padding-bottom: 10px; margin-bottom: 20px;">
+                    <h1 style="margin:0; font-size:28px; text-transform:uppercase; letter-spacing:4px; color:#000;">${emp.nome}</h1>
+                    <div style="font-size:10px; font-weight:bold; color: #666; text-transform:uppercase; letter-spacing:2px;">
+                        Mimos e Personalizados • WhatsApp: ${emp.whats}
                     </div>
                 </div>
 
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:20px;">
-                    <div>
-                        <h4 style="border-bottom:1px solid #000;">DADOS DO CLIENTE</h4>
-                        <p><b>Nome:</b> ${p.cliente.nome}<br>
-                        <b>WhatsApp:</b> ${p.cliente.whats}<br>
-                        <b>Endereço:</b> ${p.endereco.rua}, ${p.endereco.bairro}<br>
-                        <b>Cidade:</b> ${p.endereco.cidade} - ${p.endereco.cep}</p>
-                    </div>
-                    <div>
-                        <h4 style="border-bottom:1px solid #000;">RESUMO FINANCEIRO</h4>
-                        <p><b>Forma de Pagto:</b> ${p.pagamento || 'PIX/Cartão'}<br>
-                        <b>Status:</b> ${p.status}<br>
-                        <b>Envio:</b> Transportadora/Correios</p>
-                    </div>
-                </div>
+                <table style="width:100%; border-collapse: separate; border-spacing: 8px 0; margin-bottom:20px;">
+                    <tr>
+                        <td style="width:50%; border: 1px solid #eee; border-radius: 12px; padding:12px; vertical-align:top; font-size:11px; line-height:1.4; background:#f9f9f9;">
+                            <b style="color:#d4af37; font-size:9px; text-transform:uppercase; display:block; margin-bottom:4px;">Cliente</b>
+                            <b style="font-size:13px;">${p.cliente?.nome || '---'}</b><br>
+                            WhatsApp: ${p.cliente?.whats || p.cliente?.telefone || '---'}
+                        </td>
+                        <td style="width:50%; border: 1px solid #eee; border-radius: 12px; padding:12px; vertical-align:top; font-size:11px; line-height:1.4; background:#f9f9f9;">
+                            <b style="color:#d4af37; font-size:9px; text-transform:uppercase; display:block; margin-bottom:4px;">Endereço de Entrega</b>
+                            <b>${p.endereco?.rua || 'Retirada'}, ${p.endereco?.numero || ''}</b><br>
+                            ${p.endereco?.bairro || ''} - ${p.endereco?.cidade || ''}/${p.endereco?.uf || ''}<br>
+                            CEP: ${p.endereco?.cep || '---'}
+                        </td>
+                    </tr>
+                </table>`;
 
-                <table style="width:100%; margin-top:30px; border-collapse:collapse;">
+            if (emGrid) {
+                // MODELO GRID (CARTÕES DE PRODUTO)
+                html += `<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">`;
+                itens.forEach(i => {
+                    html += `
+                    <div style="border: 1px solid #eee; border-radius: 12px; padding: 10px; background:#fff; display: flex; flex-direction: column; justify-content: space-between; page-break-inside: avoid; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                        <div>
+                            ${comFoto && i.image ? `<img src="${i.image.split(',')[0]}" style="width: 100%; height: 90px; object-fit: contain; margin-bottom: 8px; border-radius: 8px;">` : ''}
+                            <div style="font-size: 11px; font-weight: bold; color:#000; text-transform: uppercase; line-height:1.2;">${i.name || ''}</div>
+                            <div style="font-size: 9px; color: #888; margin-top: 4px;">Qtd: <b>${i.quantidade}</b></div>
+                        </div>
+                        <div style="margin-top: 8px; background: #fdfaf0; padding: 6px; border-radius: 8px; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size: 9px; font-weight: bold; color:#d4af37;">SUBTOTAL:</span>
+                            ${isFin ? `<span style="font-size: 11px; font-weight: 800; color:#000;">${(i.price * i.quantidade).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>` : '<span style="font-size:10px;">---</span>'}
+                        </div>
+                    </div>`;
+                });
+                html += `</div>`;
+            } else {
+                // MODELO TABELA (LISTA COMPACTA)
+                html += `
+                <table style="width:100%; border-collapse:collapse; font-size:11px;">
                     <thead>
-                        <tr style="background:#f4f4f4;">
-                            <th style="padding:10px; text-align:left;">Produto</th>
-                            <th style="padding:10px; text-align:center;">Qtd</th>
-                            <th style="padding:10px; text-align:right;">Unitário</th>
-                            <th style="padding:10px; text-align:right;">Subtotal</th>
+                        <tr style="background:#f4f4f4; border-bottom:2px solid #d4af37;">
+                            ${comFoto ? '<th style="padding:8px; text-align:center; width:60px;">Foto</th>' : ''}
+                            <th style="padding:8px; text-align:left;">Descrição do Produto</th>
+                            <th style="padding:8px; text-align:center; width:50px;">Qtd</th>
+                            ${isFin ? '<th style="padding:8px; text-align:right; width:90px;">Subtotal</th>' : ''}
                         </tr>
                     </thead>
-                    <tbody>
-                        ${p.itens.map(i => `
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:10px;">${i.name}</td>
-                                <td style="padding:10px; text-align:center;">${i.quantidade}</td>
-                                <td style="padding:10px; text-align:right;">${fM(i.price)}</td>
-                                <td style="padding:10px; text-align:right;">${fM(i.price * i.quantidade)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+                    <tbody>`;
+                itens.forEach(i => {
+                    html += `
+                    <tr style="border-bottom:1px solid #eee;">
+                        ${comFoto ? `<td style="padding:5px; text-align:center;"><img src="${i.image?.split(',')[0] || ''}" style="width:45px; height:45px; object-fit:contain; border-radius:4px;"></td>` : ''}
+                        <td style="padding:8px;">
+                            <b style="font-size:11px; text-transform:uppercase;">${i.name}</b>
+                        </td>
+                        <td style="padding:8px; text-align:center; font-size:12px;"><b>${i.quantidade}</b></td>
+                        ${isFin ? `<td style="padding:8px; text-align:right; font-weight:bold;">${(i.price * i.quantidade).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td>` : ''}
+                    </tr>`;
+                });
+                html += `</tbody></table>`;
+            }
 
-                <div style="margin-top:30px; text-align:right; border-top:2px solid #000; padding-top:10px;">
-                    <p style="font-size:14px; margin:0;">SUBTOTAL: ${fM(p.total)}</p>
-                    <p style="font-size:14px; margin:0;">DESCONTOS: R$ 0,00</p>
-                    <h2 style="margin:5px 0;">TOTAL PAGO: ${fM(p.total)}</h2>
-                </div>
-                
-                <div style="margin-top:40px; text-align:center; font-size:10px; color:#666;">
-                    <p>Obrigado por sua compra! ✨ luaryshop.com.br</p>
+            // --- RESUMO FINANCEIRO E FINALIZAÇÃO ---
+            html += `
+            <div style="margin-top: 25px; border: 2px solid #d4af37; border-radius: 15px; padding: 15px; background: #fff; page-break-inside: avoid;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    
+                    <div style="font-size: 11px; line-height: 1.6; width: 45%;">
+                        <b style="color:#d4af37; font-size:12px; text-transform:uppercase; display:block; margin-bottom:5px;">Resumo do Pedido</b>
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #f4f4f4; padding:3px 0;"><span>Total de Itens:</span> <b>${itens.length}</b></div>
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #f4f4f4; padding:3px 0;"><span>Data do Pedido:</span> <b>${p.data}</b></div>
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #f4f4f4; padding:3px 0;"><span>Pagamento:</span> <b>${p.pagamento || 'A definir'}</b></div>
+                        <div style="margin-top:10px; font-size:10px; color:#777; font-style:italic;">Obrigado por escolher a Luary Shop!</div>
+                    </div>
+
+                    <div style="width: 50%; text-align: right;">
+                        ${isFin ? `
+                            <table style="width:100%; font-size:11px; border-collapse:collapse;">
+                                <tr><td style="text-align:right; padding:3px;">Subtotal:</td><td style="width:100px; font-weight:bold;">${subtotal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td></tr>
+                                ${descPromo > 0 ? `<tr><td style="text-align:right; padding:3px; color:red;">Desconto:</td><td style="color:red;">-${descPromo.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td></tr>` : ''}
+                                ${frete > 0 ? `<tr><td style="text-align:right; padding:3px;">Frete:</td><td>${frete.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td></tr>` : ''}
+                                <tr>
+                                    <td style="text-align:right; padding:8px 3px; font-weight:bold; font-size:14px;">TOTAL FINAL:</td>
+                                    <td style="padding:8px 0; font-weight:800; font-size:20px; border-top:2px solid #000;">${totalFinal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td>
+                                </tr>
+                            </table>
+                        ` : `
+                            <div style="height:100px; display:flex; flex-direction:column; align-items:flex-end; justify-content:center;">
+                                <span style="font-size:16px; font-weight:bold; color:#d4af37; border:1px solid #d4af37; padding:10px; border-radius:8px;">CONFERÊNCIA DE EXPEDIÇÃO</span>
+                                <span style="font-size:9px; margin-top:5px; color:#999;">Pedido #${id.substring(1,8).toUpperCase()}</span>
+                            </div>
+                        `}
+                    </div>
                 </div>
             </div>
-        `;
-        document.getElementById('modalRomaneio').classList.remove('hidden');
+            
+            <div style="margin-top:20px; text-align:center; font-size:9px; color:#aaa; text-transform:uppercase; letter-spacing:1px;">
+                Este documento é um resumo de conferência interna / Luary Shop
+            </div>
+            </div>`;
+
+            // Envio para área de impressão
+            const area = document.getElementById('printArea'); // Certifique-se que o ID no HTML é 'printArea'
+            area.innerHTML = html;
+            setTimeout(() => { window.print(); }, 500);
+        });
     });
 }
 
