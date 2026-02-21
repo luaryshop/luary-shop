@@ -19,17 +19,14 @@
         .btn-gold { background:#caa85c; color:#000; font-weight:700; padding:10px; border-radius:8px; cursor:pointer; text-transform: uppercase; font-size: 11px; text-align: center; }
         input, select { background:#111; border:1px solid #333; padding:8px; border-radius:8px; width:100%; margin-bottom:8px; color:#fff; outline:none; font-size: 12px; }
         label { font-size: 10px; color: #666; text-transform: uppercase; font-weight: bold; margin-bottom: 2px; display: block; }
-
-        /* Estilo da área de impressão - Romaneios */
+        
         #print-area { display: none; }
         @media print {
-            body * { display: none !important; }
-            #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; background: #fff; color: #000; }
-            #print-area * { display: block !important; }
-            .no-print { display: none !important; }
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; display: block; background: #fff; color: #000; z-index: 9999; }
         }
-
-        /* Modal */
+        
         #mainModal.active { display: flex; }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #caa85c; border-radius: 10px; }
@@ -38,10 +35,10 @@
 <body>
 
 <header class="p-5 text-center bg-black border-b border-[#222]">
-    <h1 class="text-[#caa85c] font-black text-xl tracking-[0.2em] uppercase">Luary Shop</h1>
+    <h1 class="text-[#caa85c] font-black text-xl tracking-[0.2em] uppercase">Luary Shop • Admin</h1>
 </header>
 
-<nav class="flex gap-2 p-2 bg-[#111] sticky top-0 z-50 overflow-x-auto no-print">
+<nav class="flex gap-2 p-2 bg-[#111] sticky top-0 z-50 overflow-x-auto">
     <button type="button" class="btn active" onclick="showTab('pedidos', this)">Pedidos</button>
     <button type="button" class="btn" onclick="showTab('produtos', this)">Produtos</button>
     <button type="button" class="btn" onclick="showTab('categorias', this)">Categorias</button>
@@ -49,7 +46,7 @@
     <button type="button" class="btn" onclick="showTab('empresa', this)">Empresa</button>
 </nav>
 
-<main class="p-6 max-w-5xl mx-auto no-print">
+<main class="p-6 max-w-5xl mx-auto">
     <section id="pedidos" class="active">
         <div id="listaPedidos" class="grid gap-4"></div>
     </section>
@@ -61,35 +58,33 @@
     <section id="categorias">
         <div class="card mb-4">
             <input id="newCatName" placeholder="Nome da Categoria">
-            <button class="btn-gold w-full" onclick="novaCategoria()">+ CADASTRAR CATEGORIA</button>
+            <button class="btn-gold w-full" onclick="novaCategoria()">ADICIONAR CATEGORIA</button>
         </div>
         <div id="listaCategorias" class="grid gap-2"></div>
     </section>
 
     <section id="promocoes">
         <div class="card text-center space-y-6 p-8">
-            <h2 class="text-[#caa85c] font-bold uppercase tracking-widest">Gestão de Campanhas</h2>
+            <h2 class="text-[#caa85c] font-bold uppercase tracking-widest">Controle de Ofertas</h2>
             <div class="bg-black/40 p-6 rounded-2xl border border-white/5">
-                <label class="mb-2">Status Geral no Site</label>
-                <button id="btnStatusPromo" onclick="togglePromoStatus()" class="px-10 py-3 rounded-xl font-black text-xs transition-all border">CARREGANDO...</button>
+                <label>Status Global da Promoção</label>
+                <button id="btnStatusPromo" onclick="togglePromoStatus()" class="px-10 py-3 mt-2 rounded-xl font-black text-xs transition-all border border-white/10">CARREGANDO...</button>
             </div>
-            <button class="btn-gold w-full py-5 text-sm" onclick="abrirPainelPromocoes()">
-                🎨 CONFIGURAR DESCONTOS E TAGS POR CATEGORIA
-            </button>
+            <button class="btn-gold w-full py-5 text-sm" onclick="abrirPainelPromocoes()">🎨 EDITAR CAMPANHAS POR CATEGORIA</button>
         </div>
     </section>
 
     <section id="empresa">
         <div class="card space-y-3">
-            <h2 class="text-[#caa85c] font-bold uppercase text-sm">Dados da Loja</h2>
-            <input id="empNome" placeholder="Nome Comercial">
-            <input id="empSub" placeholder="Slogan ou Subtítulo">
-            <input id="empWhats" placeholder="WhatsApp (ex: 5511...)">
+            <h2 class="text-[#caa85c] font-bold uppercase text-sm">Configurações da Empresa</h2>
+            <input id="empNome" placeholder="Nome da Loja">
+            <input id="empSub" placeholder="Slogan">
+            <input id="empWhats" placeholder="WhatsApp (55...)">
             <div class="grid grid-cols-2 gap-2">
-                <div><label>Desconto PIX %</label><input id="empDesc" type="number"></div>
-                <div><label>Parcelamento Máx</label><input id="empParc" type="number"></div>
+                <div><label>Desc. PIX %</label><input id="empDesc" type="number"></div>
+                <div><label>Parcelas</label><input id="empParc" type="number"></div>
             </div>
-            <button class="btn-gold w-full" onclick="salvarEmpresa()">SALVAR CONFIGURAÇÕES</button>
+            <button class="btn-gold w-full" onclick="salvarEmpresa()">SALVAR DADOS</button>
         </div>
     </section>
 </main>
@@ -102,7 +97,7 @@
         </div>
         <div id="modalBody" class="p-6 overflow-y-auto custom-scroll"></div>
         <div class="p-5 border-t border-[#222] bg-black/50">
-            <button id="modalSaveBtn" class="btn-gold w-full py-4 text-sm">SALVAR ALTERAÇÕES</button>
+            <button id="modalSaveBtn" class="btn-gold w-full py-4 text-sm">SALVAR TUDO</button>
         </div>
     </div>
 </div>
@@ -110,7 +105,6 @@
 <div id="print-area"></div>
 
 <script>
-// CONFIGURAÇÃO FIREBASE LUARY SHOP
 const firebaseConfig = {
     apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
     databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
@@ -121,35 +115,31 @@ const db = firebase.database();
 let pedidoEditando = null;
 const fMoeda = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
-// NAVEGAÇÃO
 function showTab(id, btn) {
     document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     btn.classList.add('active');
     if(id === 'pedidos') carregarPedidos();
-    if(id === 'produtos') carregarProdutos();
-    if(id === 'categorias') carregarCategorias();
-    if(id === 'empresa') carregarEmpresa();
 }
 
-// --- FUNÇÕES DE PEDIDOS E ROMANEIOS IGUAIS AO ORIGINAL ---
 function carregarPedidos() {
-    db.ref('orders').on('value', s => {
-        const l = document.getElementById('listaPedidos'); l.innerHTML = '';
-        s.forEach(ped => {
-            const p = ped.val();
-            l.innerHTML += `
-            <div class="card flex justify-between items-center border-l-4 border-[#caa85c]">
-                <div>
-                    <b class="text-[#caa85c] uppercase text-xs">${p.cliente?.nome || 'Cliente'}</b><br>
-                    <small class="text-gray-500">${p.data}</small>
-                </div>
-                <div class="flex gap-1">
-                    <button class="btn" onclick="abrirEditorPedido('${ped.key}')">EDITAR</button>
-                    <button class="btn bg-red-900" onclick="excluirPedido('${ped.key}')">🗑</button>
-                </div>
-            </div>`;
+    db.ref('orders').on('value', snapshot => {
+        const container = document.getElementById('listaPedidos');
+        container.innerHTML = '';
+        snapshot.forEach(child => {
+            const p = child.val();
+            container.innerHTML += `
+                <div class="card flex justify-between items-center border-l-4 border-[#caa85c]">
+                    <div>
+                        <b class="text-[#caa85c] text-sm uppercase">${p.cliente?.nome || 'Cliente'}</b><br>
+                        <small class="text-gray-500">${p.data}</small>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="btn" onclick="abrirEditorPedido('${child.key}')">EDITAR</button>
+                        <button class="btn bg-red-900" onclick="excluirPedido('${child.key}')">🗑</button>
+                    </div>
+                </div>`;
         });
     });
 }
@@ -158,11 +148,11 @@ function abrirEditorPedido(id) {
     pedidoEditando = id;
     db.ref('orders/' + id).once('value', snapshot => {
         const p = snapshot.val();
-        document.getElementById('modalTitle').innerText = 'EDITAR PEDIDO #' + id.slice(-5).toUpperCase();
+        document.getElementById('modalTitle').innerText = 'EDITANDO PEDIDO';
         document.getElementById('modalBody').innerHTML = `
             <div class="grid md:grid-cols-2 gap-4">
                 <div class="card bg-white/5">
-                    <label>Nome do Cliente</label><input id="edClienteNome" value="${p.cliente?.nome || ''}">
+                    <label>Cliente</label><input id="edClienteNome" value="${p.cliente?.nome || ''}">
                     <label>WhatsApp</label><input id="edClienteTel" value="${p.cliente?.telefone || ''}">
                 </div>
                 <div class="card bg-white/5">
@@ -176,27 +166,29 @@ function abrirEditorPedido(id) {
                 </div>
             </div>
             <div class="mt-4">
-                <label>Itens do Pedido</label>
+                <label>Itens</label>
                 <div id="edItens" class="space-y-2"></div>
-                <button class="btn w-full mt-2" onclick="addItemEditor()">+ ADICIONAR ITEM</button>
+                <button class="btn w-full mt-2" onclick="addItemEditor()">+ ITEM</button>
             </div>
             <div class="grid grid-cols-3 gap-2 mt-4 p-4 bg-black/40 rounded-xl">
-                <div><label>Desc. Promo (R$)</label><input id="edDescPromo" type="number" step="0.01" value="${p.descontoPromo || 0}"></div>
-                <div><label>Desc. PIX (R$)</label><input id="edDescPix" type="number" step="0.01" value="${p.descontoPix || 0}"></div>
-                <div><label>Frete (R$)</label><input id="edFrete" type="number" step="0.01" value="${p.frete || 0}"></div>
+                <div><label>Desc Promo</label><input id="edDescPromo" type="number" step="0.01" value="${p.descontoPromo || 0}"></div>
+                <div><label>Desc PIX</label><input id="edDescPix" type="number" step="0.01" value="${p.descontoPix || 0}"></div>
+                <div><label>Frete</label><input id="edFrete" type="number" step="0.01" value="${p.frete || 0}"></div>
             </div>
             <div class="mt-6 border-t border-white/10 pt-4">
-                <label class="text-center mb-2">GERAR ROMANEIO:</label>
+                <p class="text-[10px] text-gray-500 uppercase mb-4 text-center">Imprimir Romaneio</p>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
                     <button class="btn bg-zinc-800" onclick="imprimirRomaneio('${id}', 1)">CONFERÊNCIA (LISTA)</button>
                     <button class="btn bg-zinc-800" onclick="imprimirRomaneio('${id}', 2)">FINANCEIRO (LISTA)</button>
+                    <button class="btn bg-zinc-800" onclick="imprimirRomaneio('${id}', 3)">FOTOS (LISTA)</button>
+                    <button class="btn bg-blue-900" onclick="imprimirRomaneio('${id}', 4)">CONFERÊNCIA (GRID)</button>
                     <button class="btn bg-blue-900" onclick="imprimirRomaneio('${id}', 5)">FINANCEIRO (GRID)</button>
+                    <button class="btn bg-blue-900" onclick="imprimirRomaneio('${id}', 6)">FOTOS (GRID)</button>
                 </div>
-            </div>
-        `;
+            </div>`;
 
         const itens = p.itens ? (Array.isArray(p.itens) ? p.itens : Object.values(p.itens)) : [];
-        itens.forEach(item => addItemEditor(item));
+        itens.forEach(i => addItemEditor(i));
         document.getElementById('mainModal').classList.add('active');
         document.getElementById('modalSaveBtn').onclick = salvarPedidoEditado;
     });
@@ -210,48 +202,10 @@ function addItemEditor(i = {}) {
         <input placeholder="Nome" value="${i.name||''}">
         <input type="number" placeholder="Preço" value="${i.price||0}">
         <input type="number" placeholder="Qtd" value="${i.quantidade||1}">
-        <button class="text-red-500 text-[10px] col-span-4 text-left" onclick="this.parentElement.remove()">REMOVER ITEM</button>
-    `;
+        <button class="text-red-500 text-[10px] col-span-4 text-left" onclick="this.parentElement.remove()">REMOVER</button>`;
     document.getElementById('edItens').appendChild(div);
 }
 
-// --- FUNÇÃO DE PROMOÇÕES IGUAL AO ORIGINAL ---
-async function abrirPainelPromocoes() {
-    const snapCats = await db.ref('categories').once('value');
-    let html = '';
-    snapCats.forEach(cat => {
-        const c = cat.val();
-        html += `
-        <div class="card border-white/5 p-4 mb-4 bg-black/40">
-            <span class="text-[#caa85c] font-black uppercase text-xs">${c.name}</span>
-            <div class="grid grid-cols-2 gap-4 mt-2">
-                <div><label>Nome Campanha</label><input id="p_name_${cat.key}" value="${c.promoName||''}"></div>
-                <div><label>Texto Tag</label><input id="p_tag_${cat.key}" value="${c.promoTag||''}"></div>
-            </div>
-            <div class="grid grid-cols-3 gap-3 mt-2">
-                <div><label>% Desc.</label><input id="p_pct_${cat.key}" type="number" value="${c.promoPct||0}"></div>
-                <div><label>Cor Tag</label><input id="p_color_${cat.key}" type="color" value="${c.promoColor||'#caa85c'}"></div>
-                <div><label>Cor Texto</label><input id="p_tcolor_${cat.key}" type="color" value="${c.promoTextColor||'#ffffff'}"></div>
-            </div>
-        </div>`;
-    });
-    document.getElementById('modalTitle').innerText = 'EDITAR PROMOÇÕES POR CATEGORIA';
-    document.getElementById('modalBody').innerHTML = html;
-    document.getElementById('mainModal').classList.add('active');
-    document.getElementById('modalSaveBtn').onclick = () => {
-        const updates = {};
-        snapCats.forEach(cat => {
-            updates[`categories/${cat.key}/promoPct`] = Number(document.getElementById(`p_pct_${cat.key}`).value);
-            updates[`categories/${cat.key}/promoName`] = document.getElementById(`p_name_${cat.key}`).value;
-            updates[`categories/${cat.key}/promoTag`] = document.getElementById(`p_tag_${cat.key}`).value;
-            updates[`categories/${cat.key}/promoColor`] = document.getElementById(`p_color_${cat.key}`).value;
-            updates[`categories/${cat.key}/promoTextColor`] = document.getElementById(`p_tcolor_${cat.key}`).value;
-        });
-        db.ref().update(updates).then(() => { alert("Promoções Salvas!"); fecharModal(); });
-    };
-}
-
-// --- RESTO DAS FUNÇÕES DE APOIO ---
 function salvarPedidoEditado() {
     const itens = [];
     let subtotal = 0;
@@ -263,11 +217,6 @@ function salvarPedidoEditado() {
             itens.push(item);
         }
     });
-
-    const dPromo = +document.getElementById('edDescPromo').value;
-    const dPix = +document.getElementById('edDescPix').value;
-    const frete = +document.getElementById('edFrete').value;
-
     db.ref('orders/' + pedidoEditando).update({
         cliente: { nome: document.getElementById('edClienteNome').value, telefone: document.getElementById('edClienteTel').value },
         entrega: { 
@@ -275,12 +224,50 @@ function salvarPedidoEditado() {
             rua: document.getElementById('edRua').value, 
             bairro: document.getElementById('edBairro').value, 
             cidade: document.getElementById('edCidade').value,
-            cep: document.getElementById('edCep').value
+            cep: document.getElementById('edCep').value 
         },
         itens, subtotal,
-        descontoPromo: dPromo, descontoPix: dPix, frete: frete,
-        total: subtotal - dPromo - dPix + frete
-    }).then(() => { alert("Pedido Salvo!"); fecharModal(); });
+        descontoPromo: +document.getElementById('edDescPromo').value,
+        descontoPix: +document.getElementById('edDescPix').value,
+        frete: +document.getElementById('edFrete').value,
+        total: subtotal - +document.getElementById('edDescPromo').value - +document.getElementById('edDescPix').value + +document.getElementById('edFrete').value
+    }).then(() => { alert("Pedido salvo!"); fecharModal(); });
+}
+
+function abrirPainelPromocoes() {
+    db.ref('categories').once('value', snapshot => {
+        let html = '';
+        snapshot.forEach(cat => {
+            const c = cat.val();
+            html += `
+            <div class="card border-white/5 p-4 mb-4 bg-black/40">
+                <span class="text-[#caa85c] font-black uppercase text-xs">${c.name}</span>
+                <div class="grid grid-cols-2 gap-4 mt-2">
+                    <div><label>Nome Campanha</label><input id="p_name_${cat.key}" value="${c.promoName||''}"></div>
+                    <div><label>Texto Tag</label><input id="p_tag_${cat.key}" value="${c.promoTag||''}"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-3 mt-2">
+                    <div><label>% Desc.</label><input id="p_pct_${cat.key}" type="number" value="${c.promoPct||0}"></div>
+                    <div><label>Cor Tag</label><input id="p_color_${cat.key}" type="color" value="${c.promoColor||'#caa85c'}"></div>
+                    <div><label>Cor Texto</label><input id="p_tcolor_${cat.key}" type="color" value="${c.promoTextColor||'#ffffff'}"></div>
+                </div>
+            </div>`;
+        });
+        document.getElementById('modalTitle').innerText = 'EDITAR PROMOÇÕES POR CATEGORIA';
+        document.getElementById('modalBody').innerHTML = html;
+        document.getElementById('mainModal').classList.add('active');
+        document.getElementById('modalSaveBtn').onclick = () => {
+            const updates = {};
+            snapshot.forEach(cat => {
+                updates['categories/' + cat.key + '/promoPct'] = +document.getElementById('p_pct_' + cat.key).value || 0;
+                updates['categories/' + cat.key + '/promoName'] = document.getElementById('p_name_' + cat.key).value;
+                updates['categories/' + cat.key + '/promoTag'] = document.getElementById('p_tag_' + cat.key).value;
+                updates['categories/' + cat.key + '/promoColor'] = document.getElementById('p_color_' + cat.key).value;
+                updates['categories/' + cat.key + '/promoTextColor'] = document.getElementById('p_tcolor_' + cat.key).value;
+            });
+            db.ref().update(updates).then(() => { alert("Salvo!"); fecharModal(); });
+        };
+    });
 }
 
 function imprimirRomaneio(id, tipo) {
@@ -288,54 +275,67 @@ function imprimirRomaneio(id, tipo) {
         db.ref('settings/empresa').once('value', sEmp => {
             const p = sPed.val(); const emp = sEmp.val() || {};
             const itens = p.itens ? (Array.isArray(p.itens) ? p.itens : Object.values(p.itens)) : [];
-            const isFin = [2, 5].includes(tipo);
+            const isFin = [2, 3, 5, 6].includes(tipo);
+            const isGrid = [4, 5, 6].includes(tipo);
+            const showFoto = [3, 6].includes(tipo);
 
-            let html = `
-            <div style="padding:10mm; font-family:Arial;">
-                <h1 style="text-align:center;">${emp.nome || 'LUARY SHOP'}</h1>
-                <div style="display:flex; justify-content:space-between; margin:20px 0; border:1px solid #000; padding:10px;">
-                    <div><b>CLIENTE:</b> ${p.cliente?.nome}<br><b>TEL:</b> ${p.cliente?.telefone}</div>
-                    <div><b>ENTREGA:</b> ${p.entrega?.rua}, ${p.entrega?.bairro}<br>${p.entrega?.cidade} - ${p.entrega?.cep}</div>
-                </div>
-                <table style="width:100%; border-collapse:collapse;">
-                    <thead><tr style="background:#eee;">
-                        <th style="border:1px solid #000; padding:5px;">PRODUTO</th>
+            let html = `<div style="padding:10mm; font-family:Arial; background:#fff; color:#000;">
+                <h1 style="text-align:center; border-bottom:2px solid #000; padding-bottom:5px;">${emp.nome || 'LUARY SHOP'}</h1>
+                <div style="display:flex; justify-content:space-between; margin:15px 0;">
+                    <div style="border:1px solid #000; padding:10px; width:48%;">
+                        <b>CLIENTE:</b> ${p.cliente?.nome}<br><b>WHATS:</b> ${p.cliente?.telefone}
+                    </div>
+                    <div style="border:1px solid #000; padding:10px; width:48%;">
+                        <b>ENTREGA:</b> ${p.entrega?.rua || ''}, ${p.entrega?.bairro || ''}<br>${p.entrega?.cidade || ''} - CEP: ${p.entrega?.cep || ''}
+                    </div>
+                </div>`;
+
+            if (!isGrid) {
+                html += `<table style="width:100%; border-collapse:collapse; font-size:11px;">
+                    <tr style="background:#eee;">
+                        ${showFoto ? '<th style="border:1px solid #000; padding:5px;">FOTO</th>' : ''}
+                        <th style="border:1px solid #000; padding:5px; text-align:left;">PRODUTO</th>
                         <th style="border:1px solid #000; padding:5px;">QTD</th>
-                        ${isFin ? '<th style="border:1px solid #000; padding:5px;">TOTAL</th>' : ''}
-                    </tr></thead><tbody>`;
-            
-            itens.forEach(i => {
-                html += `<tr>
-                    <td style="border:1px solid #000; padding:5px;">${i.sku} - ${i.name}</td>
-                    <td style="border:1px solid #000; padding:5px; text-align:center;">${i.quantidade}</td>
-                    ${isFin ? `<td style="border:1px solid #000; padding:5px; text-align:right;">${fMoeda(i.price * i.quantidade)}</td>` : ''}
-                </tr>`;
-            });
-            html += `</tbody></table>`;
-            if(isFin) html += `<div style="text-align:right; margin-top:10px;"><b>TOTAL: ${fMoeda(p.total)}</b></div>`;
+                        ${isFin ? '<th style="border:1px solid #000; padding:5px; text-align:right;">VALOR</th>' : ''}
+                    </tr>`;
+                itens.forEach(i => {
+                    html += `<tr>
+                        ${showFoto ? `<td style="border:1px solid #000; text-align:center;"><img src="${i.image}" style="width:50px; height:50px; object-fit:contain;"></td>` : ''}
+                        <td style="border:1px solid #000; padding:5px;"><b>${i.sku}</b> - ${i.name}</td>
+                        <td style="border:1px solid #000; padding:5px; text-align:center;">${i.quantidade}</td>
+                        ${isFin ? `<td style="border:1px solid #000; padding:5px; text-align:right;">${fMoeda(i.price * i.quantidade)}</td>` : ''}
+                    </tr>`;
+                });
+                html += `</table>`;
+            } else {
+                html += `<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;">`;
+                itens.forEach(i => {
+                    html += `<div style="border:1px solid #000; padding:5px; text-align:center; font-size:10px;">
+                        ${showFoto ? `<img src="${i.image}" style="width:100%; height:80px; object-fit:contain; margin-bottom:5px;">` : ''}
+                        <b>${i.sku}</b><br>${i.name}<br>QTD: ${i.quantidade}
+                        ${isFin ? `<br><b>${fMoeda(i.price * i.quantidade)}</b>` : ''}
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+
+            if (isFin) {
+                html += `<div style="margin-top:20px; text-align:right; font-size:14px; border-top:1px solid #000; padding-top:10px;">
+                    Subtotal: ${fMoeda(p.subtotal)} | Frete: ${fMoeda(p.frete)}<br>
+                    Desc. Promo: ${fMoeda(p.descontoPromo)} | Desc. PIX: ${fMoeda(p.descontoPix)}<br>
+                    <b style="font-size:18px;">TOTAL: ${fMoeda(p.total)}</b>
+                </div>`;
+            }
             html += `</div>`;
-            
             document.getElementById('print-area').innerHTML = html;
-            window.print();
+            setTimeout(() => { window.print(); }, 500);
         });
     });
 }
 
 function togglePromoStatus() {
     db.ref('settings/promocao/ativa').once('value', s => {
-        const novo = !s.val();
-        db.ref('settings/promocao/ativa').set(novo);
-    });
-}
-
-function carregarEmpresa() {
-    db.ref('settings/empresa').once('value', s => {
-        const v = s.val() || {};
-        document.getElementById('empNome').value = v.nome || '';
-        document.getElementById('empSub').value = v.subtitulo || '';
-        document.getElementById('empWhats').value = v.whats || '';
-        document.getElementById('empDesc').value = v.descontoPix || 0;
-        document.getElementById('empParc').value = v.parcelas || 0;
+        db.ref('settings/promocao/ativa').set(!s.val());
     });
 }
 
@@ -346,16 +346,31 @@ function salvarEmpresa() {
         whats: document.getElementById('empWhats').value,
         descontoPix: +document.getElementById('empDesc').value,
         parcelas: +document.getElementById('empParc').value
-    }).then(() => alert('Salvo!'));
+    }).then(() => alert("Dados salvos!"));
 }
 
 function fecharModal() { document.getElementById('mainModal').classList.remove('active'); }
-function excluirPedido(id) { if(confirm('Excluir?')) db.ref('orders/'+id).remove(); }
-function novaCategoria() { const n = document.getElementById('newCatName').value; if(n) db.ref('categories').push({name:n}); }
+function excluirPedido(id) { if(confirm('Excluir pedido?')) db.ref('orders/' + id).remove(); }
+function novaCategoria() {
+    const name = document.getElementById('newCatName').value;
+    if(name) db.ref('categories').push({name}).then(() => document.getElementById('newCatName').value = '');
+}
 function carregarCategorias() {
-    db.ref('categories').on('value', s => {
-        const l = document.getElementById('listaCategorias'); l.innerHTML = '';
-        s.forEach(c => { l.innerHTML += `<div class="card flex justify-between"><span>${c.val().name}</span><button onclick="db.ref('categories/${c.key}').remove()">🗑</button></div>`; });
+    db.ref('categories').on('value', snapshot => {
+        const container = document.getElementById('listaCategorias');
+        container.innerHTML = '';
+        snapshot.forEach(child => {
+            container.innerHTML += `<div class="card flex justify-between"><span>${child.val().name}</span><button onclick="db.ref('categories/${child.key}').remove()">🗑</button></div>`;
+        });
+    });
+}
+function carregarProdutos() {
+    db.ref('products').once('value', snapshot => {
+        const container = document.getElementById('listaProdutos'); container.innerHTML = '';
+        snapshot.forEach(child => {
+            const p = child.val();
+            container.innerHTML += `<div class="card flex justify-between"><span>${p.name} (${p.sku})</span><button onclick="db.ref('products/${child.key}').remove()">🗑</button></div>`;
+        });
     });
 }
 
@@ -363,10 +378,18 @@ window.onload = () => {
     carregarPedidos();
     db.ref('settings/promocao/ativa').on('value', s => {
         const v = s.val(); const b = document.getElementById('btnStatusPromo');
-        if(b){
+        if(b) {
             b.innerText = v ? 'ATIVA' : 'INATIVA';
-            b.className = `px-10 py-3 rounded-xl font-black text-xs border ${v ? 'bg-green-900/20 text-green-500 border-green-500/20' : 'bg-red-900/20 text-red-500 border-red-500/20'}`;
+            b.className = `px-10 py-3 mt-2 rounded-xl font-black text-xs transition-all border ${v ? 'bg-green-900/20 text-green-500 border-green-500/20':'bg-red-900/20 text-red-500 border-red-500/20'}`;
         }
+    });
+    db.ref('settings/empresa').once('value', s => {
+        const v = s.val() || {};
+        document.getElementById('empNome').value = v.nome || '';
+        document.getElementById('empSub').value = v.subtitulo || '';
+        document.getElementById('empWhats').value = v.whats || '';
+        document.getElementById('empDesc').value = v.descontoPix || 0;
+        document.getElementById('empParc').value = v.parcelas || 0;
     });
 };
 </script>
