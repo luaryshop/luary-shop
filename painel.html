@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Gestor Luary Shop v5.0</title>
+    <title>Painel Gestor Luary Shop v6.0</title>
 
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -17,265 +17,250 @@
 
     <style>
         body { font-family: 'Poppins', sans-serif; background-color: #F8FAFC; }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 10px; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect } = React;
 
         // --- CONFIGURAÇÃO FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
             databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
         };
-
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // --- CONSTANTES DE CUSTO (LUARY SHOP) ---
-        const CONFIG_GLOBAL = {
-            custo_banho: { ouro: 0.85, prata: 0.60, niquel: 0.40, sem_banho: 0 },
-            embalagem: 1.50,
-            marketplaces: {
-                shopee: { nome: "Shopee", comissao: 20, taxa_fixa: 3 },
-                mercado_livre: { nome: "Mercado Livre", comissao: 16.5, taxa_fixa: 6 }
-            }
-        };
-
         const App = () => {
+            const [activeTab, setActiveTab] = useState('catalogo');
             const [products, setProducts] = useState([]);
+            const [marketplaces, setMarketplaces] = useState([]);
+            const [logistica, setLogistica] = useState({ embalagem: 1.5, banho_ouro: 0.85, banho_prata: 0.60, banho_niquel: 0.40 });
             const [loading, setLoading] = useState(true);
             const [searchTerm, setSearchTerm] = useState('');
-            const [editingProduct, setEditingProduct] = useState(null);
-            const [isModalOpen, setIsModalOpen] = useState(false);
+            
+            // Estados dos Modais
+            const [modalProd, setModalProd] = useState(null);
+            const [modalMP, setModalMP] = useState(null);
+            const [showLogistica, setShowLogistica] = useState(false);
 
             useEffect(() => {
-                const ref = db.ref('products');
-                ref.on('value', (snapshot) => {
-                    const data = snapshot.val();
-                    if (data) {
-                        const list = Object.entries(data).map(([id, v]) => ({ 
-                            id, 
-                            custosAdicionais: v.custosAdicionais || [],
-                            ...v 
-                        }));
-                        setProducts(list);
-                    }
-                    setLoading(false);
-                });
+                // Listeners Firebase
+                db.ref('products').on('value', s => setProducts(Object.entries(s.val() || {}).map(([id, v]) => ({id, ...v}))));
+                db.ref('marketplaces').on('value', s => setMarketplaces(Object.entries(s.val() || {}).map(([id, v]) => ({id, ...v}))));
+                db.ref('config_logistica').on('value', s => s.val() && setLogistica(s.val()));
+                setLoading(false);
             }, []);
 
-            // --- LÓGICA DE CÁLCULO TÉCNICO ---
-            const calcularPrecificacao = (prod) => {
-                const mp = CONFIG_GLOBAL.marketplaces[prod.marketplace || 'shopee'];
-                const custoBanho = (Number(prod.peso) || 0) * CONFIG_GLOBAL.custo_banho[prod.tipoBanho || 'ouro'];
-                const totalCustosExtras = (prod.custosAdicionais || []).reduce((acc, c) => acc + Number(c.valor || 0), 0);
+            // --- CÁLCULOS ---
+            const calcular = (prod) => {
+                const mp = marketplaces.find(m => m.id === prod.marketplace) || { comissao: 0, taxa_fixa: 0 };
+                const valorBanho = logistica[`banho_${prod.tipoBanho}`] || 0;
+                const custoBanho = (Number(prod.peso) || 0) * valorBanho;
+                const custosExtras = (prod.custosAdicionais || []).reduce((acc, c) => acc + Number(c.valor || 0), 0);
                 
-                const custoTotalBase = custoBanho + totalCustosExtras + CONFIG_GLOBAL.embalagem;
-                
-                // Cálculo de Preço Sugerido (Baseado na Margem Alvo)
+                const custoTotal = custoBanho + custosExtras + Number(logistica.embalagem);
+                const comissaoPercent = Number(mp.comissao) / 100;
                 const margemAlvo = Number(prod.margemAlvo || 50) / 100;
-                const comissaoMP = mp.comissao / 100;
-                const precoSugerido = (custoTotalBase + mp.taxa_fixa) / (1 - comissaoMP - margemAlvo);
 
-                // Preço Final (Se estratégia for fixa, usa o precoVenda, senão usa o sugerido)
-                const precoFinal = prod.estrategia === 'fixo' ? Number(prod.precoVenda || 0) : precoSugerido;
-                
-                const taxaVenda = (precoFinal * comissaoMP) + mp.taxa_fixa;
-                const lucro = precoFinal - custoTotalBase - taxaVenda;
+                const sugerido = (custoTotal + Number(mp.taxa_fixa)) / (1 - comissaoPercent - margemAlvo);
+                const precoFinal = prod.estrategia === 'fixo' ? Number(prod.precoVenda || 0) : sugerido;
+                const lucro = precoFinal - custoTotal - (precoFinal * comissaoPercent) - Number(mp.taxa_fixa);
                 const margemReal = precoFinal > 0 ? (lucro / precoFinal) * 100 : 0;
 
-                return { custoTotalBase, precoSugerido, precoFinal, lucro, margemReal };
+                return { custoTotal, sugerido, precoFinal, lucro, margemReal };
             };
 
-            const handleSave = () => {
-                db.ref(`products/${editingProduct.id}`).update(editingProduct);
-                setIsModalOpen(false);
-            };
+            const handleSaveProd = () => { db.ref(`products/${modalProd.id}`).update(modalProd); setModalProd(null); };
+            const handleSaveMP = () => { db.ref(`marketplaces/${modalMP.id}`).update(modalMP); setModalMP(null); };
+            const handleSaveLog = () => { db.ref('config_logistica').update(logistica); setShowLogistica(false); };
 
-            const addCustoExtra = () => {
-                const novosCustos = [...(editingProduct.custosAdicionais || []), { item: '', valor: 0 }];
-                setEditingProduct({...editingProduct, custosAdicionais: novosCustos});
-            };
-
-            const filtered = products.filter(p => p.sku?.toLowerCase().includes(searchTerm.toLowerCase()) || p.nome?.toLowerCase().includes(searchTerm.toLowerCase()));
-
-            if (loading) return <div className="h-screen flex items-center justify-center font-black text-slate-900">CARREGANDO LUARY SHOP...</div>;
+            if (loading) return <div className="h-screen flex items-center justify-center font-black">CARREGANDO...</div>;
 
             return (
                 <div className="flex min-h-screen">
                     {/* SIDEBAR */}
-                    <aside className="w-64 bg-slate-900 text-white p-6 fixed h-full">
-                        <div className="mb-10"><h1 className="text-xl font-black">LUARY SHOP</h1><p className="text-[10px] text-amber-500">ADMIN V5.0</p></div>
-                        <nav className="space-y-2">
-                            <div className="bg-amber-500 text-slate-900 p-3 rounded-xl font-bold cursor-pointer">Catálogo</div>
+                    <aside className="w-64 bg-slate-900 text-white p-6 fixed h-full flex flex-col shadow-2xl">
+                        <div className="mb-10 text-center">
+                            <h1 className="text-2xl font-black tracking-tighter">LUARY SHOP</h1>
+                            <div className="h-1 w-12 bg-amber-500 mx-auto mt-1 rounded-full"></div>
+                        </div>
+                        <nav className="space-y-3 flex-1">
+                            <button onClick={() => setActiveTab('catalogo')} className={`w-full p-4 rounded-2xl font-bold flex gap-3 transition ${activeTab === 'catalogo' ? 'bg-amber-500 text-slate-900 shadow-lg' : 'hover:bg-white/5 text-slate-400'}`}>📦 Catálogo</button>
+                            <button onClick={() => setActiveTab('vendas')} className={`w-full p-4 rounded-2xl font-bold flex gap-3 transition ${activeTab === 'vendas' ? 'bg-amber-500 text-slate-900' : 'hover:bg-white/5 text-slate-400'}`}>💰 Canais de Venda</button>
+                            <button onClick={() => setShowLogistica(true)} className="w-full p-4 rounded-2xl font-bold flex gap-3 text-slate-400 hover:bg-white/5 transition">⚙️ Logística</button>
                         </nav>
                     </aside>
 
-                    {/* CONTEÚDO */}
                     <main className="ml-64 p-10 w-full">
-                        <div className="flex justify-between items-center mb-10">
-                            <input className="w-1/3 p-4 rounded-2xl border border-slate-200 shadow-sm outline-none focus:ring-2 ring-amber-500" placeholder="Buscar SKU..." onChange={e => setSearchTerm(e.target.value)} />
-                            <button onClick={() => {
-                                const key = db.ref('products').push().key;
-                                db.ref(`products/${key}`).set({ id: key, sku: 'NOVO-SKU', nome: 'Novo Produto', peso: 0, tipoBanho: 'ouro', estrategia: 'margem', margemAlvo: 50, marketplace: 'shopee' });
-                            }} className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black hover:bg-slate-800 transition">+ NOVO PRODUTO</button>
-                        </div>
-
-                        {/* GRID DE PRODUTOS */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {filtered.map(prod => {
-                                const calc = calcularPrecificacao(prod);
-                                return (
-                                    <div key={prod.id} className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition-all group">
-                                        {/* Imagem 1:1 */}
-                                        <div className="aspect-square bg-slate-100 relative">
-                                            {prod.imageUrl ? <img src={prod.imageUrl} className="w-full h-full object-cover" /> : <div className="flex h-full items-center justify-center text-slate-300">Sem Foto</div>}
-                                            <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-[10px] font-black uppercase shadow-sm">
-                                                {prod.marketplace === 'shopee' ? '🟠 Shopee' : '🔵 M. Livre'}
-                                            </div>
-                                            <button onClick={() => { setEditingProduct(prod); setIsModalOpen(true); }} className="absolute bottom-4 right-4 bg-amber-500 p-3 rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-all font-bold">EDITAR</button>
-                                        </div>
-                                        
-                                        {/* Info Card */}
-                                        <div className="p-6">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-md">{prod.sku}</span>
-                                                <span className="text-[10px] font-bold text-slate-400">{prod.peso}g | {prod.tipoBanho}</span>
-                                            </div>
-                                            <h3 className="font-bold text-slate-800 mb-4 line-clamp-1">{prod.nome}</h3>
-                                            
-                                            {/* Valores */}
-                                            <div className="grid grid-cols-2 gap-4 border-t pt-4">
-                                                <div>
-                                                    <p className="text-[9px] font-bold text-slate-400 uppercase">Preço Venda</p>
-                                                    <p className="text-lg font-black text-slate-900">R$ {calc.precoFinal.toFixed(2)}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-[9px] font-bold text-slate-400 uppercase">Lucro</p>
-                                                    <p className={`text-lg font-black ${calc.lucro > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>R$ {calc.lucro.toFixed(2)}</p>
-                                                </div>
-                                            </div>
-                                            <div className="mt-2 bg-slate-50 p-2 rounded-lg flex justify-between">
-                                                <span className="text-[10px] font-bold text-slate-500">Margem Real:</span>
-                                                <span className="text-[10px] font-black text-slate-700">{calc.margemReal.toFixed(1)}%</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </main>
-
-                    {/* MODAL DE CADASTRO COMPLETO (FOTO 2) */}
-                    {isModalOpen && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/95 backdrop-blur-md p-6">
-                            <div className="bg-white w-full max-w-5xl rounded-[3rem] p-10 flex flex-col max-h-[90vh] overflow-hidden">
-                                <div className="flex justify-between items-center mb-8">
-                                    <h2 className="text-2xl font-black italic underline decoration-amber-500">CONFIGURAÇÃO DO SKU</h2>
-                                    <button onClick={handleSave} className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black shadow-xl hover:scale-105 transition-all">SALVAR DADOS</button>
+                        {/* ABA: CATÁLOGO */}
+                        {activeTab === 'catalogo' && (
+                            <div className="animate-in fade-in duration-500">
+                                <div className="flex justify-between items-center mb-10">
+                                    <input className="w-96 p-4 rounded-[1.5rem] border-0 shadow-sm outline-none focus:ring-2 ring-amber-500" placeholder="Pesquisar SKU..." onChange={e => setSearchTerm(e.target.value)} />
+                                    <button onClick={() => {
+                                        const key = db.ref('products').push().key;
+                                        setModalProd({ id: key, sku: 'NOVO-SKU', nome: 'Novo Item', peso: 0, tipoBanho: 'ouro', estrategia: 'margem', margemAlvo: 50, custosAdicionais: [] });
+                                    }} className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black shadow-lg hover:scale-105 transition-all">+ CADASTRAR PRODUTO</button>
                                 </div>
 
-                                <div className="overflow-y-auto pr-4 space-y-8">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                        {/* Coluna 1: Identificação */}
-                                        <div className="space-y-4">
-                                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b pb-2">Identificação & Mídia</h4>
-                                            <input className="w-full p-4 bg-slate-100 rounded-xl font-bold" value={editingProduct.nome} onChange={e => setEditingProduct({...editingProduct, nome: e.target.value})} placeholder="Nome do Produto" />
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <input className="w-full p-4 bg-slate-100 rounded-xl font-bold uppercase" value={editingProduct.sku} onChange={e => setEditingProduct({...editingProduct, sku: e.target.value})} placeholder="SKU" />
-                                                <input className="w-full p-4 bg-slate-100 rounded-xl font-bold" type="number" value={editingProduct.peso} onChange={e => setEditingProduct({...editingProduct, peso: e.target.value})} placeholder="Peso Bruto (g)" />
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                                    {products.filter(p => p.sku?.toLowerCase().includes(searchTerm.toLowerCase())).map(prod => {
+                                        const c = calcular(prod);
+                                        return (
+                                            <div key={prod.id} className="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-sm hover:shadow-2xl transition-all group">
+                                                <div className="aspect-square bg-slate-50 relative">
+                                                    {prod.imageUrl ? <img src={prod.imageUrl} className="w-full h-full object-cover" /> : <div className="flex h-full items-center justify-center text-slate-300">1:1 Image</div>}
+                                                    <button onClick={() => setModalProd(prod)} className="absolute bottom-4 right-4 bg-amber-500 p-3 rounded-xl font-bold shadow-xl opacity-0 group-hover:opacity-100 transition-all">EDITAR</button>
+                                                </div>
+                                                <div className="p-6">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-md uppercase">{prod.sku}</span>
+                                                        <span className="text-[10px] font-bold text-slate-400">{prod.peso}g</span>
+                                                    </div>
+                                                    <h3 className="font-bold text-slate-800 text-sm h-10 line-clamp-2">{prod.name || prod.nome}</h3>
+                                                    <div className="mt-4 pt-4 border-t flex justify-between items-end">
+                                                        <div><p className="text-[9px] font-bold text-slate-400">VENDA</p><p className="text-lg font-black text-slate-900">R$ {c.precoFinal.toFixed(2)}</p></div>
+                                                        <div className="text-right"><p className="text-[9px] font-bold text-slate-400">LUCRO</p><p className="text-sm font-black text-emerald-500">R$ {c.lucro.toFixed(2)}</p></div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <input className="w-full p-4 bg-slate-100 rounded-xl font-bold" value={editingProduct.imageUrl} onChange={e => setEditingProduct({...editingProduct, imageUrl: e.target.value})} placeholder="Link da Foto (1:1)" />
-                                        </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
 
-                                        {/* Coluna 2: Custos Adicionais */}
-                                        <div className="space-y-4">
-                                            <div className="flex justify-between items-center border-b pb-2">
-                                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Insumos e Custos Extras</h4>
-                                                <button onClick={addCustoExtra} className="text-[10px] bg-slate-900 text-white px-2 py-1 rounded-md">+ ADD</button>
+                        {/* ABA: CANAIS DE VENDA */}
+                        {activeTab === 'vendas' && (
+                            <div className="animate-in slide-in-from-bottom-4 duration-500">
+                                <div className="flex justify-between items-center mb-10">
+                                    <h2 className="text-3xl font-black">Canais de Venda</h2>
+                                    <button onClick={() => {
+                                        const key = db.ref('marketplaces').push().key;
+                                        setModalMP({ id: key, nome: 'Novo Marketplace', comissao: 0, taxa_fixa: 0 });
+                                    }} className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black">+ NOVO CANAL</button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {marketplaces.map(mp => (
+                                        <div key={mp.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                                            <div className="w-12 h-12 bg-slate-100 rounded-xl mb-4 flex items-center justify-center text-xl">🛒</div>
+                                            <h3 className="font-black text-xl mb-2">{mp.nome}</h3>
+                                            <div className="space-y-1 text-sm font-bold text-slate-500">
+                                                <p>Comissão: <span className="text-slate-900">{mp.comissao}%</span></p>
+                                                <p>Taxa Fixa: <span className="text-slate-900">R$ {mp.taxa_fixa}</span></p>
                                             </div>
-                                            <div className="space-y-2 max-h-48 overflow-y-auto">
-                                                {(editingProduct.custosAdicionais || []).map((c, idx) => (
-                                                    <div key={idx} className="flex gap-2">
-                                                        <input className="flex-1 p-3 bg-slate-50 rounded-xl text-xs font-bold" value={c.item} onChange={e => {
-                                                            const nc = [...editingProduct.custosAdicionais];
-                                                            nc[idx].item = e.target.value;
-                                                            setEditingProduct({...editingProduct, custosAdicionais: nc});
-                                                        }} placeholder="Ex: Argola" />
-                                                        <input className="w-24 p-3 bg-slate-50 rounded-xl text-xs font-bold" type="number" value={c.valor} onChange={e => {
-                                                            const nc = [...editingProduct.custosAdicionais];
-                                                            nc[idx].valor = e.target.value;
-                                                            setEditingProduct({...editingProduct, custosAdicionais: nc});
-                                                        }} placeholder="R$" />
-                                                        <button onClick={() => {
-                                                            const nc = editingProduct.custosAdicionais.filter((_, i) => i !== idx);
-                                                            setEditingProduct({...editingProduct, custosAdicionais: nc});
-                                                        }} className="text-rose-500 font-bold px-2">X</button>
+                                            <button onClick={() => setModalMP(mp)} className="mt-6 w-full py-3 bg-slate-50 rounded-xl font-bold hover:bg-amber-500 transition-all">Configurar Taxas</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* MODAL PRODUTO */}
+                    {modalProd && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-6">
+                            <div className="bg-white w-full max-w-5xl rounded-[3rem] p-10 flex flex-col max-h-[90vh] overflow-hidden shadow-2xl">
+                                <div className="flex justify-between items-center mb-8">
+                                    <h2 className="text-2xl font-black">Detalhes do SKU</h2>
+                                    <div className="flex gap-3">
+                                        <button onClick={() => setModalProd(null)} className="px-6 py-2 font-bold text-slate-400">Cancelar</button>
+                                        <button onClick={handleSaveProd} className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black">SALVAR</button>
+                                    </div>
+                                </div>
+                                <div className="overflow-y-auto custom-scroll pr-4 space-y-8">
+                                    <div className="grid grid-cols-2 gap-8">
+                                        <div className="space-y-4">
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase">Informações Básicas</label>
+                                            <input className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none border border-transparent focus:border-amber-500" placeholder="Nome do Produto" value={modalProd.nome || modalProd.name} onChange={e => setModalProd({...modalProd, nome: e.target.value, name: e.target.value})} />
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <input className="w-full p-4 bg-slate-50 rounded-2xl font-bold uppercase" placeholder="SKU" value={modalProd.sku} onChange={e => setModalProd({...modalProd, sku: e.target.value})} />
+                                                <input className="w-full p-4 bg-slate-50 rounded-2xl font-bold" type="number" placeholder="Peso (g)" value={modalProd.peso} onChange={e => setModalProd({...modalProd, peso: e.target.value})} />
+                                            </div>
+                                            <input className="w-full p-4 bg-slate-50 rounded-2xl font-bold" placeholder="URL da Imagem (1:1)" value={modalProd.imageUrl} onChange={e => setModalProd({...modalProd, imageUrl: e.target.value})} />
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between"><label className="text-[10px] font-black text-slate-400 uppercase">Custos Adicionais</label>
+                                            <button onClick={() => setModalProd({...modalProd, custosAdicionais: [...(modalProd.custosAdicionais || []), {item: '', valor: 0}]})} className="text-[10px] font-black text-amber-600">+ ADICIONAR</button></div>
+                                            <div className="space-y-2 max-h-48 overflow-y-auto custom-scroll">
+                                                {(modalProd.custosAdicionais || []).map((c, i) => (
+                                                    <div key={i} className="flex gap-2">
+                                                        <input className="flex-1 p-3 bg-slate-50 rounded-xl text-xs font-bold" placeholder="Item" value={c.item} onChange={e => { const nc = [...modalProd.custosAdicionais]; nc[i].item = e.target.value; setModalProd({...modalProd, custosAdicionais: nc}) }} />
+                                                        <input className="w-20 p-3 bg-slate-50 rounded-xl text-xs font-bold" type="number" placeholder="R$" value={c.valor} onChange={e => { const nc = [...modalProd.custosAdicionais]; nc[i].valor = e.target.value; setModalProd({...modalProd, custosAdicionais: nc}) }} />
                                                     </div>
                                                 ))}
                                             </div>
                                         </div>
                                     </div>
+                                    <div className="bg-slate-900 p-8 rounded-[2.5rem] grid grid-cols-3 gap-6">
+                                        <div><label className="text-[10px] text-slate-500 font-black block mb-2 uppercase">Marketplace</label>
+                                        <select className="w-full p-4 bg-white/10 text-white rounded-xl font-bold outline-none" value={modalProd.marketplace} onChange={e => setModalProd({...modalProd, marketplace: e.target.value})}>
+                                            <option value="" className="text-slate-900">Selecionar...</option>
+                                            {marketplaces.map(m => <option key={m.id} value={m.id} className="text-slate-900">{m.nome}</option>)}
+                                        </select></div>
+                                        <div><label className="text-[10px] text-slate-500 font-black block mb-2 uppercase">Tipo de Banho</label>
+                                        <select className="w-full p-4 bg-white/10 text-white rounded-xl font-bold outline-none" value={modalProd.tipoBanho} onChange={e => setModalProd({...modalProd, tipoBanho: e.target.value})}>
+                                            <option value="ouro" className="text-slate-900">Ouro</option>
+                                            <option value="prata" className="text-slate-900">Prata</option>
+                                            <option value="niquel" className="text-slate-900">Níquel</option>
+                                            <option value="sem_banho" className="text-slate-900">Sem Banho</option>
+                                        </select></div>
+                                        <div><label className="text-[10px] text-slate-500 font-black block mb-2 uppercase">Margem Alvo %</label>
+                                        <input className="w-full p-4 bg-white/10 text-white rounded-xl font-bold outline-none" type="number" value={modalProd.margemAlvo} onChange={e => setModalProd({...modalProd, margemAlvo: e.target.value})} /></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-                                    {/* Estratégia de Preço */}
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-900 p-8 rounded-[2rem] text-white">
-                                        <div>
-                                            <label className="text-[10px] font-black text-slate-400 block mb-2">CANAL DE VENDA</label>
-                                            <select className="w-full p-4 bg-white/10 rounded-xl font-bold outline-none" value={editingProduct.marketplace} onChange={e => setEditingProduct({...editingProduct, marketplace: e.target.value})}>
-                                                <option value="shopee" className="text-slate-900">SHOPEE (20% + R$3)</option>
-                                                <option value="mercado_livre" className="text-slate-900">MERCADO LIVRE (16.5% + R$6)</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-black text-slate-400 block mb-2">TIPO DE BANHO</label>
-                                            <select className="w-full p-4 bg-white/10 rounded-xl font-bold outline-none" value={editingProduct.tipoBanho} onChange={e => setEditingProduct({...editingProduct, tipoBanho: e.target.value})}>
-                                                <option value="ouro" className="text-slate-900">OURO (R$0.85/g)</option>
-                                                <option value="prata" className="text-slate-900">PRATA (R$0.60/g)</option>
-                                                <option value="niquel" className="text-slate-900">NÍQUEL (R$0.40/g)</option>
-                                                <option value="sem_banho" className="text-slate-900">OUTRO / SEM BANHO</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-black text-slate-400 block mb-2">ESTRATÉGIA</label>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => setEditingProduct({...editingProduct, estrategia: 'margem'})} className={`flex-1 p-3 rounded-xl font-bold text-xs ${editingProduct.estrategia === 'margem' ? 'bg-amber-500 text-slate-900' : 'bg-white/5'}`}>MARGEM %</button>
-                                                <button onClick={() => setEditingProduct({...editingProduct, estrategia: 'fixo'})} className={`flex-1 p-3 rounded-xl font-bold text-xs ${editingProduct.estrategia === 'fixo' ? 'bg-amber-500 text-slate-900' : 'bg-white/5'}`}>PREÇO FIXO</button>
-                                            </div>
-                                        </div>
+                    {/* MODAL MARKETPLACE */}
+                    {modalMP && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm">
+                            <div className="bg-white p-10 rounded-[3rem] w-full max-w-md shadow-2xl">
+                                <h2 className="text-2xl font-black mb-6">Configurar Canal</h2>
+                                <div className="space-y-4">
+                                    <div><label className="text-[10px] font-black text-slate-400 ml-2">NOME DO CANAL</label>
+                                    <input className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-amber-500" value={modalMP.nome} onChange={e => setModalMP({...modalMP, nome: e.target.value})} /></div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div><label className="text-[10px] font-black text-slate-400 ml-2">COMISSÃO %</label>
+                                        <input type="number" className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none" value={modalMP.comissao} onChange={e => setModalMP({...modalMP, comissao: e.target.value})} /></div>
+                                        <div><label className="text-[10px] font-black text-slate-400 ml-2">TAXA FIXA R$</label>
+                                        <input type="number" className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none" value={modalMP.taxa_fixa} onChange={e => setModalMP({...modalMP, taxa_fixa: e.target.value})} /></div>
                                     </div>
+                                </div>
+                                <div className="flex gap-4 mt-8">
+                                    <button onClick={() => setModalMP(null)} className="flex-1 font-bold text-slate-400">Voltar</button>
+                                    <button onClick={handleSaveMP} className="flex-1 bg-slate-900 text-white p-4 rounded-2xl font-black">SALVAR</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-                                    {/* Resultados Calculados (Cards da Foto 2) */}
-                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                            <p className="text-[9px] font-black text-slate-400">CUSTO TOTAL BASE</p>
-                                            <p className="text-lg font-black text-slate-900">R$ {calcularPrecificacao(editingProduct).custoTotalBase.toFixed(2)}</p>
-                                        </div>
-                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                            <p className="text-[9px] font-black text-slate-400">PREÇO SUGERIDO</p>
-                                            <p className="text-lg font-black text-amber-600">R$ {calcularPrecificacao(editingProduct).precoSugerido.toFixed(2)}</p>
-                                        </div>
-                                        <div className="bg-slate-900 p-4 rounded-2xl border border-slate-100 shadow-xl shadow-amber-500/10">
-                                            <p className="text-[9px] font-black text-amber-500">PREÇO FINAL</p>
-                                            <input type="number" className="bg-transparent text-white text-lg font-black outline-none w-full" value={editingProduct.precoVenda} onChange={e => setEditingProduct({...editingProduct, precoVenda: e.target.value})} />
-                                        </div>
-                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                            <p className="text-[9px] font-black text-slate-400">LUCRO LÍQUIDO</p>
-                                            <p className="text-lg font-black text-emerald-500">R$ {calcularPrecificacao(editingProduct).lucro.toFixed(2)}</p>
-                                        </div>
-                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                            <p className="text-[9px] font-black text-slate-400">MARGEM REAL</p>
-                                            <p className="text-lg font-black text-slate-900">{calcularPrecificacao(editingProduct).margemReal.toFixed(1)}%</p>
+                    {/* MODAL LOGÍSTICA */}
+                    {showLogistica && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm">
+                            <div className="bg-white p-10 rounded-[3rem] w-full max-w-md shadow-2xl">
+                                <h2 className="text-2xl font-black mb-6">Custos de Operação</h2>
+                                <div className="space-y-4">
+                                    <div><label className="text-[10px] font-black text-slate-400 ml-2">EMBALAGEM PADRÃO (R$)</label>
+                                    <input type="number" className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none" value={logistica.embalagem} onChange={e => setLogistica({...logistica, embalagem: e.target.value})} /></div>
+                                    <div className="border-t pt-4 space-y-3">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase">Valores do Banho (por Grama)</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <input type="number" className="p-3 bg-amber-50 rounded-xl font-bold text-xs" title="Ouro" value={logistica.banho_ouro} onChange={e => setLogistica({...logistica, banho_ouro: e.target.value})} />
+                                            <input type="number" className="p-3 bg-slate-100 rounded-xl font-bold text-xs" title="Prata" value={logistica.banho_prata} onChange={e => setLogistica({...logistica, banho_prata: e.target.value})} />
+                                            <input type="number" className="p-3 bg-slate-100 rounded-xl font-bold text-xs" title="Níquel" value={logistica.banho_niquel} onChange={e => setLogistica({...logistica, banho_niquel: e.target.value})} />
                                         </div>
                                     </div>
-                                    
-                                    <div className="flex justify-end gap-4 mt-4">
-                                        <button onClick={() => { if(confirm("Apagar permanentemente?")) { db.ref(`products/${editingProduct.id}`).remove(); setIsModalOpen(false); }}} className="text-rose-500 font-bold text-xs">Excluir Produto</button>
-                                        <button onClick={() => setIsModalOpen(false)} className="text-slate-400 font-bold text-xs">Fechar sem salvar</button>
-                                    </div>
+                                </div>
+                                <div className="flex gap-4 mt-8">
+                                    <button onClick={() => setShowLogistica(false)} className="flex-1 font-bold text-slate-400">Fechar</button>
+                                    <button onClick={handleSaveLog} className="flex-1 bg-slate-900 text-white p-4 rounded-2xl font-black">SALVAR TUDO</button>
                                 </div>
                             </div>
                         </div>
