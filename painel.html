@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Gestor Luary Shop v4.0</title>
+
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-[#F8FAFC]">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- CONFIGURAÇÃO FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
+            databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
+        };
+
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('catalogo');
+            const [products, setProducts] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [editingProduct, setEditingProduct] = useState(null);
+            const [isModalOpen, setIsModalOpen] = useState(false);
+
+            // Carregar Dados
+            useEffect(() => {
+                const ref = db.ref('products');
+                ref.on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        const list = Object.entries(data).map(([id, v]) => ({ id, ...v }));
+                        setProducts(list);
+                    }
+                    setLoading(false);
+                });
+            }, []);
+
+            // Salvar
+            const saveProduct = () => {
+                db.ref(`products/${editingProduct.id}`).update(editingProduct);
+                setIsModalOpen(false);
+            };
+
+            const filtered = products.filter(p => 
+                p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            if (loading) return (
+                <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-bold text-xl">
+                    INICIALIZANDO LUARY SHOP...
+                </div>
+            );
+
+            return (
+                <div className="flex min-h-screen">
+                    {/* Sidebar */}
+                    <aside className="w-64 bg-slate-900 p-6 flex flex-col fixed h-full text-white">
+                        <div className="mb-10 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-slate-900 font-black">L</div>
+                            <div>
+                                <h1 className="font-bold text-lg">Luary Shop</h1>
+                                <p className="text-[10px] text-slate-400 uppercase">Gestor de SKUs</p>
+                            </div>
+                        </div>
+                        <nav className="space-y-4">
+                            <button onClick={() => setActiveTab('catalogo')} className={`w-full text-left p-3 rounded-xl ${activeTab === 'catalogo' ? 'bg-amber-500 text-slate-900' : ''}`}>Catálogo</button>
+                            <button onClick={() => setActiveTab('config')} className={`w-full text-left p-3 rounded-xl ${activeTab === 'config' ? 'bg-amber-500 text-slate-900' : ''}`}>Configurações</button>
+                        </nav>
+                    </aside>
+
+                    {/* Main Content */}
+                    <main className="flex-1 ml-64 p-8">
+                        <div className="flex justify-between items-center mb-8">
+                            <input 
+                                className="w-96 p-4 rounded-2xl border border-slate-200 outline-none shadow-sm focus:ring-2 ring-amber-500/20"
+                                placeholder="Buscar chaveiro..."
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
+                            <button 
+                                onClick={() => {
+                                    const newKey = db.ref().child('products').push().key;
+                                    db.ref(`products/${newKey}`).set({
+                                        id: newKey, sku: 'NOVO-SKU', name: 'Novo Item Luary', baseWeight: 15, bathType: 'ouro', salePrice: 39.9, imageUrl: ''
+                                    });
+                                }}
+                                className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold"
+                            >
+                                + NOVO SKU
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {filtered.map(prod => (
+                                <div key={prod.id} className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden hover:shadow-xl transition-all">
+                                    <div className="h-48 bg-slate-100 relative">
+                                        {prod.imageUrl && <img src={prod.imageUrl} className="w-full h-full object-cover" />}
+                                        <button 
+                                            onClick={() => { setEditingProduct(prod); setIsModalOpen(true); }}
+                                            className="absolute top-4 right-4 bg-amber-500 p-2 rounded-lg shadow-md"
+                                        >
+                                            Editar
+                                        </button>
+                                    </div>
+                                    <div className="p-6">
+                                        <span className="text-[10px] font-black text-amber-600 uppercase">{prod.sku}</span>
+                                        <h3 className="font-bold text-sm mb-4 line-clamp-2">{prod.name}</h3>
+                                        <div className="flex justify-between items-center border-t pt-4">
+                                            <span className="text-xl font-black">R$ {parseFloat(prod.salePrice).toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </main>
+
+                    {/* Modal */}
+                    {isModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
+                            <div className="bg-white w-full max-w-2xl rounded-[2.5rem] p-8">
+                                <h2 className="text-2xl font-black mb-6">Editar SKU</h2>
+                                <div className="space-y-4">
+                                    <input className="w-full p-4 bg-slate-100 rounded-xl" value={editingProduct.sku} onChange={e => setEditingProduct({...editingProduct, sku: e.target.value})} placeholder="SKU" />
+                                    <textarea className="w-full p-4 bg-slate-100 rounded-xl" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} placeholder="Nome" />
+                                    <input className="w-full p-4 bg-slate-100 rounded-xl" value={editingProduct.imageUrl} onChange={e => setEditingProduct({...editingProduct, imageUrl: e.target.value})} placeholder="URL Imagem" />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <input className="w-full p-4 bg-slate-100 rounded-xl" type="number" value={editingProduct.salePrice} onChange={e => setEditingProduct({...editingProduct, salePrice: e.target.value})} placeholder="Preço" />
+                                        <input className="w-full p-4 bg-slate-100 rounded-xl" type="number" value={editingProduct.baseWeight} onChange={e => setEditingProduct({...editingProduct, baseWeight: e.target.value})} placeholder="Peso" />
+                                    </div>
+                                </div>
+                                <div className="flex gap-4 mt-8">
+                                    <button onClick={() => setIsModalOpen(false)} className="flex-1 p-4 font-bold">Cancelar</button>
+                                    <button onClick={saveProduct} className="flex-1 bg-slate-900 text-white p-4 rounded-2xl font-bold">SALVAR</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
