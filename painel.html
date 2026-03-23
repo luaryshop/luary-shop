@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Gestor Luary Shop v4.0</title>
+    <title>Painel Gestor Luary Shop v4.1</title>
 
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -17,16 +17,14 @@
 
     <style>
         body { font-family: 'Poppins', sans-serif; }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body class="bg-[#F8FAFC]">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect } = React;
 
-        // --- CONFIGURAÇÃO FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
             databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
@@ -34,6 +32,18 @@
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+
+        // LISTA EXTRAÍDA DA SUA PLANILHA (222.xlsx)
+        const initialProducts = [
+            { sku: "CH-PAI-NOSSO", name: "Chaveiro Pai Nosso", baseWeight: 14.80, salePrice: 39.90 },
+            { sku: "CH-S-JORGE", name: "Chaveiro São Jorge", baseWeight: 15.20, salePrice: 39.90 },
+            { sku: "CH-N-S-APARECIDA", name: "Chaveiro Nossa Senhora Aparecida", baseWeight: 14.50, salePrice: 39.90 },
+            { sku: "CH-S-BENTO", name: "Chaveiro São Bento", baseWeight: 15.00, salePrice: 39.90 },
+            { sku: "CH-ESP-SANTO", name: "Chaveiro Espírito Santo", baseWeight: 13.90, salePrice: 39.90 },
+            { sku: "CH-PARE-NOSSA", name: "Chaveiro Ave Maria", baseWeight: 14.10, salePrice: 39.90 },
+            { sku: "CH-SAG-CORACAO", name: "Chaveiro Sagrado Coração", baseWeight: 15.50, salePrice: 39.90 },
+            { sku: "CH-ANJO-GUARDA", name: "Chaveiro Anjo da Guarda", baseWeight: 13.20, salePrice: 39.90 }
+        ];
 
         const App = () => {
             const [activeTab, setActiveTab] = useState('catalogo');
@@ -43,7 +53,6 @@
             const [editingProduct, setEditingProduct] = useState(null);
             const [isModalOpen, setIsModalOpen] = useState(false);
 
-            // Carregar Dados
             useEffect(() => {
                 const ref = db.ref('products');
                 ref.on('value', (snapshot) => {
@@ -51,15 +60,26 @@
                     if (data) {
                         const list = Object.entries(data).map(([id, v]) => ({ id, ...v }));
                         setProducts(list);
+                    } else {
+                        // Se estiver vazio, popula com os dados da planilha
+                        initialProducts.forEach(p => {
+                            const newKey = ref.push().key;
+                            ref.child(newKey).set({ ...p, id: newKey, bathType: 'ouro', imageUrl: '' });
+                        });
                     }
                     setLoading(false);
                 });
             }, []);
 
-            // Salvar
             const saveProduct = () => {
                 db.ref(`products/${editingProduct.id}`).update(editingProduct);
                 setIsModalOpen(false);
+            };
+
+            const deleteProduct = (id) => {
+                if(confirm("Deseja realmente excluir este SKU?")) {
+                    db.ref(`products/${id}`).remove();
+                }
             };
 
             const filtered = products.filter(p => 
@@ -67,11 +87,7 @@
                 p.sku.toLowerCase().includes(searchTerm.toLowerCase())
             );
 
-            if (loading) return (
-                <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-bold text-xl">
-                    INICIALIZANDO LUARY SHOP...
-                </div>
-            );
+            if (loading) return <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-bold">CARREGANDO DADOS DA PLANILHA...</div>;
 
             return (
                 <div className="flex min-h-screen">
@@ -85,50 +101,51 @@
                             </div>
                         </div>
                         <nav className="space-y-4">
-                            <button onClick={() => setActiveTab('catalogo')} className={`w-full text-left p-3 rounded-xl ${activeTab === 'catalogo' ? 'bg-amber-500 text-slate-900' : ''}`}>Catálogo</button>
-                            <button onClick={() => setActiveTab('config')} className={`w-full text-left p-3 rounded-xl ${activeTab === 'config' ? 'bg-amber-500 text-slate-900' : ''}`}>Configurações</button>
+                            <button onClick={() => setActiveTab('catalogo')} className={`w-full text-left p-3 rounded-xl transition ${activeTab === 'catalogo' ? 'bg-amber-500 text-slate-900' : 'hover:bg-white/10'}`}>Catálogo</button>
                         </nav>
                     </aside>
 
-                    {/* Main Content */}
+                    {/* Main */}
                     <main className="flex-1 ml-64 p-8">
-                        <div className="flex justify-between items-center mb-8">
+                        <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
                             <input 
-                                className="w-96 p-4 rounded-2xl border border-slate-200 outline-none shadow-sm focus:ring-2 ring-amber-500/20"
-                                placeholder="Buscar chaveiro..."
+                                className="w-96 p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-amber-500/20"
+                                placeholder="Buscar por SKU ou Nome..."
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
-                            <button 
-                                onClick={() => {
-                                    const newKey = db.ref().child('products').push().key;
-                                    db.ref(`products/${newKey}`).set({
-                                        id: newKey, sku: 'NOVO-SKU', name: 'Novo Item Luary', baseWeight: 15, bathType: 'ouro', salePrice: 39.9, imageUrl: ''
-                                    });
-                                }}
-                                className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold"
-                            >
-                                + NOVO SKU
-                            </button>
+                            <div className="text-right">
+                                <p className="text-xs font-bold text-slate-400">TOTAL DE SKUs</p>
+                                <p className="text-2xl font-black text-slate-900">{products.length}</p>
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {filtered.map(prod => (
-                                <div key={prod.id} className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden hover:shadow-xl transition-all">
-                                    <div className="h-48 bg-slate-100 relative">
-                                        {prod.imageUrl && <img src={prod.imageUrl} className="w-full h-full object-cover" />}
-                                        <button 
-                                            onClick={() => { setEditingProduct(prod); setIsModalOpen(true); }}
-                                            className="absolute top-4 right-4 bg-amber-500 p-2 rounded-lg shadow-md"
-                                        >
-                                            Editar
-                                        </button>
+                                <div key={prod.id} className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden hover:shadow-xl transition-all group">
+                                    <div className="h-44 bg-slate-100 relative">
+                                        {prod.imageUrl ? (
+                                            <img src={prod.imageUrl} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-slate-300 text-xs">Sem Imagem</div>
+                                        )}
+                                        <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                            <button onClick={() => { setEditingProduct(prod); setIsModalOpen(true); }} className="bg-white p-2 rounded-lg shadow-md text-slate-900 hover:bg-amber-500">Editar</button>
+                                            <button onClick={() => deleteProduct(prod.id)} className="bg-white p-2 rounded-lg shadow-md text-rose-600 hover:bg-rose-50">Excluir</button>
+                                        </div>
                                     </div>
                                     <div className="p-6">
-                                        <span className="text-[10px] font-black text-amber-600 uppercase">{prod.sku}</span>
-                                        <h3 className="font-bold text-sm mb-4 line-clamp-2">{prod.name}</h3>
-                                        <div className="flex justify-between items-center border-t pt-4">
-                                            <span className="text-xl font-black">R$ {parseFloat(prod.salePrice).toFixed(2)}</span>
+                                        <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter bg-amber-50 px-2 py-1 rounded-md">{prod.sku}</span>
+                                        <h3 className="font-bold text-sm mt-3 h-10 line-clamp-2 text-slate-800">{prod.name}</h3>
+                                        <div className="flex justify-between items-end mt-4 pt-4 border-t border-slate-50">
+                                            <div>
+                                                <p className="text-[9px] font-bold text-slate-400">PESO BASE</p>
+                                                <p className="font-bold text-slate-600">{prod.baseWeight}g</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[9px] font-bold text-slate-400">VENDA</p>
+                                                <p className="text-lg font-black text-slate-900">R$ {parseFloat(prod.salePrice).toFixed(2)}</p>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -136,23 +153,38 @@
                         </div>
                     </main>
 
-                    {/* Modal */}
+                    {/* Modal de Edição */}
                     {isModalOpen && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
-                            <div className="bg-white w-full max-w-2xl rounded-[2.5rem] p-8">
-                                <h2 className="text-2xl font-black mb-6">Editar SKU</h2>
-                                <div className="space-y-4">
-                                    <input className="w-full p-4 bg-slate-100 rounded-xl" value={editingProduct.sku} onChange={e => setEditingProduct({...editingProduct, sku: e.target.value})} placeholder="SKU" />
-                                    <textarea className="w-full p-4 bg-slate-100 rounded-xl" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} placeholder="Nome" />
-                                    <input className="w-full p-4 bg-slate-100 rounded-xl" value={editingProduct.imageUrl} onChange={e => setEditingProduct({...editingProduct, imageUrl: e.target.value})} placeholder="URL Imagem" />
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4">
+                            <div className="bg-white w-full max-w-xl rounded-[3rem] p-10 shadow-2xl">
+                                <h2 className="text-2xl font-black mb-8 text-slate-900">Ajustar SKU</h2>
+                                <div className="space-y-5">
                                     <div className="grid grid-cols-2 gap-4">
-                                        <input className="w-full p-4 bg-slate-100 rounded-xl" type="number" value={editingProduct.salePrice} onChange={e => setEditingProduct({...editingProduct, salePrice: e.target.value})} placeholder="Preço" />
-                                        <input className="w-full p-4 bg-slate-100 rounded-xl" type="number" value={editingProduct.baseWeight} onChange={e => setEditingProduct({...editingProduct, baseWeight: e.target.value})} placeholder="Peso" />
+                                        <div>
+                                            <label className="text-[10px] font-black text-slate-400 ml-2">SKU</label>
+                                            <input className="w-full p-4 bg-slate-100 rounded-2xl font-bold outline-none focus:ring-2 ring-amber-500/30" value={editingProduct.sku} onChange={e => setEditingProduct({...editingProduct, sku: e.target.value})} />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-slate-400 ml-2">PESO (G)</label>
+                                            <input type="number" className="w-full p-4 bg-slate-100 rounded-2xl font-bold outline-none focus:ring-2 ring-amber-500/30" value={editingProduct.baseWeight} onChange={e => setEditingProduct({...editingProduct, baseWeight: e.target.value})} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 ml-2">NOME DO PRODUTO</label>
+                                        <input className="w-full p-4 bg-slate-100 rounded-2xl font-bold outline-none focus:ring-2 ring-amber-500/30" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 ml-2">URL DA IMAGEM</label>
+                                        <input className="w-full p-4 bg-slate-100 rounded-2xl font-bold outline-none focus:ring-2 ring-amber-500/30" value={editingProduct.imageUrl} onChange={e => setEditingProduct({...editingProduct, imageUrl: e.target.value})} />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 ml-2">PREÇO DE VENDA (R$)</label>
+                                        <input type="number" className="w-full p-4 bg-amber-50 rounded-2xl font-black text-amber-700 border border-amber-200 outline-none" value={editingProduct.salePrice} onChange={e => setEditingProduct({...editingProduct, salePrice: e.target.value})} />
                                     </div>
                                 </div>
-                                <div className="flex gap-4 mt-8">
-                                    <button onClick={() => setIsModalOpen(false)} className="flex-1 p-4 font-bold">Cancelar</button>
-                                    <button onClick={saveProduct} className="flex-1 bg-slate-900 text-white p-4 rounded-2xl font-bold">SALVAR</button>
+                                <div className="flex gap-4 mt-10">
+                                    <button onClick={() => setIsModalOpen(false)} className="flex-1 p-4 font-bold text-slate-400">Cancelar</button>
+                                    <button onClick={saveProduct} className="flex-1 bg-slate-900 text-white p-4 rounded-2xl font-black shadow-lg">SALVAR ALTERAÇÕES</button>
                                 </div>
                             </div>
                         </div>
