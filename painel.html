@@ -3,34 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luary Shop | Business Intelligence</title>
+    <title>Luary Shop | Dashboard</title>
 
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;900&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Poppins', sans-serif; background-color: #F8FAFC; color: #1E293B; }
+        body { font-family: 'Poppins', sans-serif; background-color: #F8FAFC; }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        .glass-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
-        input[type="number"]::-webkit-inner-spin-button { display: none; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect } = React;
 
-        // Configuração do Firebase da Luary Shop
         const firebaseConfig = {
             apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
             databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
@@ -38,7 +33,6 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // Componente de Ícone Lucide para React
         const Icon = ({ name, size = 20, className = "" }) => {
             useEffect(() => { lucide.createIcons(); }, [name]);
             return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
@@ -46,260 +40,162 @@
 
         const App = () => {
             const [activeTab, setActiveTab] = useState('catalogo');
-            const [searchTerm, setSearchTerm] = useState('');
             const [products, setProducts] = useState([]);
             const [marketplaces, setMarketplaces] = useState([]);
+            const [logistics, setLogistics] = useState({ packaging: { cost: 1.5 }, bathCosts: { ouro: 0.8, prata: 0.6, niquel: 0.4, sem_banho: 0 } });
             const [editingProduct, setEditingProduct] = useState(null);
-            const [logistics, setLogistics] = useState({ 
-                packaging: { cost: 1.5 }, 
-                bathCosts: { ouro: 0.8, prata: 0.6, niquel: 0.4, sem_banho: 0 } 
-            });
 
-            // Sync Firebase
             useEffect(() => {
                 db.ref('products').on('value', s => setProducts(Object.entries(s.val() || {}).map(([id, v]) => ({id, ...v}))));
-                db.ref('marketplaces').on('value', s => {
-                    const data = s.val();
-                    if (data) setMarketplaces(Object.entries(data).map(([id, v]) => ({id, ...v})));
-                    else {
-                        const initial = [
-                            { id: 'shopee', name: 'Shopee', commission: 20, fixedFee: 3 },
-                            { id: 'ml', name: 'Mercado Livre', commission: 16.5, fixedFee: 6 }
-                        ];
-                        initial.forEach(m => db.ref(`marketplaces/${m.id}`).set(m));
-                    }
-                });
+                db.ref('marketplaces').on('value', s => setMarketplaces(Object.entries(s.val() || {}).map(([id, v]) => ({id, ...v}))));
+                db.ref('logistics').on('value', s => s.val() && setLogistics(s.val()));
             }, []);
 
-            // Cálculo Logístico Avançado
             const calculateProduct = (prod) => {
-                if (!prod) return { totalProdCost: 0, finalPrice: 0, profit: 0, margin: 0 };
                 const mp = marketplaces.find(m => m.id === prod.selectedMarketplace) || { commission: 20, fixedFee: 3 };
-                
-                const bathCost = (Number(prod.baseWeight) || 0) * (logistics.bathCosts[prod.bathType] || 0);
+                const bathVal = (Number(prod.baseWeight) || 0) * (logistics.bathCosts[prod.bathType] || 0);
                 const extraCosts = (prod.additionalCosts || []).reduce((acc, c) => acc + Number(c.value || 0), 0);
-                const totalProdCost = bathCost + extraCosts + Number(logistics.packaging.cost);
-                
+                const totalProdCost = bathVal + extraCosts + Number(logistics.packaging.cost);
                 const divisor = (1 - (Number(mp.commission) + Number(prod.targetMargin || 0)) / 100);
-                const suggestedPrice = divisor > 0 ? (totalProdCost + Number(mp.fixedFee)) / divisor : 0;
-                
-                const finalPrice = prod.strategy === 'margem' ? suggestedPrice : Number(prod.salePrice || 0);
-                const feesVal = (finalPrice * (Number(mp.commission) / 100)) + Number(mp.fixedFee);
-                const profit = finalPrice - totalProdCost - feesVal;
-                const margin = finalPrice > 0 ? (profit / finalPrice) * 100 : 0;
-
-                return { totalProdCost, suggestedPrice, finalPrice, profit, margin };
+                const finalPrice = prod.strategy === 'margem' ? (totalProdCost + Number(mp.fixedFee)) / divisor : Number(prod.salePrice || 0);
+                const profit = finalPrice - totalProdCost - (finalPrice * (mp.commission/100)) - mp.fixedFee;
+                return { totalProdCost, finalPrice, profit };
             };
 
             return (
-                <div className="flex min-h-screen bg-[#F8FAFC]">
-                    {/* Sidebar Estilo Aplicativo */}
-                    <aside className="w-20 lg:w-64 bg-slate-900 text-white p-4 lg:p-8 flex flex-col fixed h-full z-20">
-                        <div className="mb-12 flex items-center gap-3">
-                            <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-slate-900 font-black shadow-lg shadow-amber-500/20">L</div>
-                            <div className="hidden lg:block">
-                                <h1 className="font-black text-lg tracking-tighter italic">LUARY SHOP</h1>
-                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Business Intelligence</p>
-                            </div>
-                        </div>
-
-                        <nav className="space-y-3">
-                            {[
-                                { id: 'catalogo', icon: 'package', label: 'Meus SKUs' },
-                                { id: 'marketplaces', icon: 'shopping-bag', label: 'Canais' },
-                                { id: 'config', icon: 'settings', label: 'Logística' }
-                            ].map(item => (
-                                <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center justify-center lg:justify-start gap-4 p-4 rounded-2xl font-bold transition-all ${activeTab === item.id ? 'bg-amber-500 text-slate-900 shadow-xl shadow-amber-500/10' : 'text-slate-400 hover:bg-white/5'}`}>
-                                    <Icon name={item.icon} />
-                                    <span className="hidden lg:block text-sm">{item.label}</span>
-                                </button>
-                            ))}
+                <div className="flex min-h-screen">
+                    {/* Sidebar */}
+                    <aside className="w-20 lg:w-64 bg-slate-900 text-white p-6 fixed h-full">
+                        <div className="mb-10 font-black italic text-xl hidden lg:block text-amber-500">LUARY SHOP</div>
+                        <nav className="space-y-4">
+                            <button onClick={() => setActiveTab('catalogo')} className={`w-full flex items-center gap-4 p-4 rounded-2xl ${activeTab === 'catalogo' ? 'bg-amber-500 text-slate-900' : 'text-slate-400'}`}>
+                                <Icon name="package" /><span className="hidden lg:block font-bold">Produtos</span>
+                            </button>
+                            <button onClick={() => setActiveTab('marketplaces')} className={`w-full flex items-center gap-4 p-4 rounded-2xl ${activeTab === 'marketplaces' ? 'bg-amber-500 text-slate-900' : 'text-slate-400'}`}>
+                                <Icon name="shopping-cart" /><span className="hidden lg:block font-bold">Canais</span>
+                            </button>
+                            <button onClick={() => setActiveTab('logistics')} className={`w-full flex items-center gap-4 p-4 rounded-2xl ${activeTab === 'logistics' ? 'bg-amber-500 text-slate-900' : 'text-slate-400'}`}>
+                                <Icon name="truck" /><span className="hidden lg:block font-bold">Logística</span>
+                            </button>
                         </nav>
                     </aside>
 
-                    <main className="ml-20 lg:ml-64 p-6 lg:p-12 w-full">
+                    <main className="ml-20 lg:ml-64 p-10 w-full">
+                        {/* ABA: CATÁLOGO */}
                         {activeTab === 'catalogo' && (
-                            <div className="max-w-7xl mx-auto space-y-8">
-                                <header className="flex flex-col lg:row justify-between items-start lg:items-center gap-6">
-                                    <div>
-                                        <h2 className="text-3xl font-black text-slate-900">Catálogo de Produtos</h2>
-                                        <p className="text-slate-500 font-medium">Gerencie custos e margens em tempo real</p>
-                                    </div>
-                                    <div className="flex gap-4 w-full lg:w-auto">
-                                        <div className="relative flex-1 lg:w-80">
-                                            <Icon name="search" size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                                            <input className="w-full pl-12 pr-4 py-4 bg-white border-0 rounded-2xl shadow-sm focus:ring-2 ring-amber-500/20 outline-none font-medium text-sm" placeholder="Buscar por SKU ou Nome..." onChange={e => setSearchTerm(e.target.value)} />
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-center">
+                                    <h2 className="text-3xl font-black">Meus SKUs</h2>
+                                    <button onClick={() => {
+                                        const key = db.ref('products').push().key;
+                                        db.ref(`products/${key}`).set({ id: key, sku: 'NOVO', name: 'Novo Produto', baseWeight: 0, bathType: 'ouro', strategy: 'margem', targetMargin: 50, selectedMarketplace: marketplaces[0]?.id || 'shopee' });
+                                    }} className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold">+ Novo SKU</button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {products.map(p => (
+                                        <div key={p.id} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 group">
+                                            <div className="flex justify-between mb-4">
+                                                <span className="text-[10px] font-black bg-slate-100 px-2 py-1 rounded-md">{p.sku}</span>
+                                                <button onClick={() => setEditingProduct(p)} className="text-slate-400 hover:text-slate-900"><Icon name="edit" size={16}/></button>
+                                            </div>
+                                            <h3 className="font-bold text-sm mb-4 line-clamp-1">{p.name}</h3>
+                                            <div className="flex justify-between border-t pt-4">
+                                                <span className="font-black">R$ {calculateProduct(p).finalPrice.toFixed(2)}</span>
+                                                <span className="text-emerald-500 font-black">R$ {calculateProduct(p).profit.toFixed(2)}</span>
+                                            </div>
                                         </div>
-                                        <button onClick={() => {
-                                            const key = db.ref('products').push().key;
-                                            const newP = { id: key, sku: 'SKU-000', name: 'Novo Produto Semijoia', baseWeight: 0, bathType: 'ouro', strategy: 'margem', targetMargin: 50, selectedMarketplace: 'shopee', additionalCosts: [] };
-                                            db.ref(`products/${key}`).set(newP);
-                                            setEditingProduct(newP);
-                                        }} className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-sm shadow-xl hover:scale-105 transition-all flex items-center gap-2">
-                                            <Icon name="plus" size={18} /> <span className="hidden sm:inline">NOVO SKU</span>
-                                        </button>
-                                    </div>
-                                </header>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                    {products.filter(p => p.sku?.toLowerCase().includes(searchTerm.toLowerCase()) || p.name?.toLowerCase().includes(searchTerm.toLowerCase())).map(prod => {
-                                        const res = calculateProduct(prod);
-                                        return (
-                                            <div key={prod.id} className="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl transition-all group flex flex-col">
-                                                <div className="aspect-square bg-slate-50 relative overflow-hidden">
-                                                    {prod.imageUrl ? <img src={prod.imageUrl} className="w-full h-full object-cover transition-transform group-hover:scale-110" /> : <div className="h-full flex items-center justify-center text-slate-200"><Icon name="image" size={40} /></div>}
-                                                    <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-xl shadow-sm"><span className="text-[10px] font-black text-slate-900 uppercase tracking-tighter">{prod.sku}</span></div>
-                                                    <button onClick={() => setEditingProduct(prod)} className="absolute bottom-4 right-4 bg-slate-900 text-white p-4 rounded-2xl shadow-xl opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all"><Icon name="edit-3" size={18} /></button>
+                        {/* ABA: CANAIS (MARKETPLACES) */}
+                        {activeTab === 'marketplaces' && (
+                            <div className="space-y-8 animate-in fade-in">
+                                <h2 className="text-3xl font-black italic">Gestão de Canais</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {marketplaces.map(mp => (
+                                        <div key={mp.id} className="bg-white p-8 rounded-[2.5rem] shadow-xl border-t-4 border-amber-500">
+                                            <div className="flex items-center gap-4 mb-6">
+                                                <Icon name="store" size={32} className="text-slate-900" />
+                                                <h3 className="text-2xl font-black">{mp.name}</h3>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-6">
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase">Comissão %</label>
+                                                    <input type="number" className="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none border border-transparent focus:border-amber-500" value={mp.commission} onChange={e => db.ref(`marketplaces/${mp.id}`).update({commission: e.target.value})} />
                                                 </div>
-                                                <div className="p-6 flex-1 flex flex-col">
-                                                    <h3 className="font-bold text-slate-800 text-sm leading-tight h-10 line-clamp-2 mb-4">{prod.name}</h3>
-                                                    <div className="grid grid-cols-2 gap-3 mb-6">
-                                                        <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                                                            <p className="text-[9px] font-black text-slate-400 uppercase">Venda</p>
-                                                            <p className="text-sm font-black text-slate-900">R$ {res.finalPrice.toFixed(2)}</p>
-                                                        </div>
-                                                        <div className={`p-3 rounded-2xl border ${res.profit > 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
-                                                            <p className="text-[9px] font-black text-slate-400 uppercase">Lucro</p>
-                                                            <p className={`text-sm font-black ${res.profit > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>R$ {res.profit.toFixed(2)}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="mt-auto pt-4 border-t border-slate-50 flex justify-between items-center">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase">Margem Real</span>
-                                                        <span className={`text-xs font-black ${res.margin > 20 ? 'text-emerald-500' : 'text-amber-500'}`}>{res.margin.toFixed(1)}%</span>
-                                                    </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase">Taxa Fixa R$</label>
+                                                    <input type="number" className="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none border border-transparent focus:border-amber-500" value={mp.fixedFee} onChange={e => db.ref(`marketplaces/${mp.id}`).update({fixedFee: e.target.value})} />
                                                 </div>
                                             </div>
-                                        );
-                                    })}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ABA: LOGÍSTICA (BANHOS E EMBALAGENS) */}
+                        {activeTab === 'logistics' && (
+                            <div className="space-y-8 animate-in fade-in">
+                                <h2 className="text-3xl font-black italic">Custos Operacionais</h2>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    <div className="bg-slate-900 text-white p-8 rounded-[3rem] shadow-2xl">
+                                        <h3 className="text-amber-500 font-black mb-6 uppercase tracking-widest text-xs">Tabela de Banhos (R$ por grama)</h3>
+                                        <div className="space-y-4">
+                                            {Object.entries(logistics.bathCosts).map(([key, val]) => (
+                                                <div key={key} className="flex items-center justify-between bg-white/5 p-4 rounded-2xl border border-white/5">
+                                                    <span className="capitalize font-bold">{key}</span>
+                                                    <input type="number" step="0.01" className="bg-transparent text-right font-black text-amber-500 w-24 outline-none" value={val} onChange={e => {
+                                                        const newBaths = {...logistics.bathCosts, [key]: e.target.value};
+                                                        db.ref('logistics').update({bathCosts: newBaths});
+                                                    }} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
+                                        <h3 className="font-black mb-6 uppercase text-slate-400 text-xs">Insumos Gerais</h3>
+                                        <div className="bg-slate-50 p-6 rounded-3xl">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase">Custo Médio de Embalagem/Brinde</label>
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <span className="font-black text-2xl">R$</span>
+                                                <input type="number" className="bg-transparent text-4xl font-black outline-none w-full" value={logistics.packaging.cost} onChange={e => {
+                                                    db.ref('logistics/packaging').update({cost: e.target.value});
+                                                }} />
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}
                     </main>
 
-                    {/* MODAL DESIGN DARK - IGUAL AO CANVA/GEMINI */}
+                    {/* MODAL DE EDIÇÃO (DARK MODE) */}
                     {editingProduct && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-sm p-4 lg:p-8">
-                            <div className="bg-slate-900 text-white w-full max-w-6xl rounded-[3rem] p-8 lg:p-12 flex flex-col max-h-[95vh] overflow-hidden shadow-2xl">
-                                <header className="flex justify-between items-center mb-10">
-                                    <div>
-                                        <h2 className="text-3xl font-black italic">EDITOR TÉCNICO</h2>
-                                        <p className="text-amber-500 font-bold text-[10px] uppercase tracking-[0.2em]">Luary Shop Product Manager</p>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <button onClick={() => setEditingProduct(null)} className="p-4 rounded-2xl text-slate-400 hover:text-white transition"><Icon name="x" /></button>
-                                        <button onClick={() => { db.ref(`products/${editingProduct.id}`).update(editingProduct); setEditingProduct(null); }} className="bg-amber-500 text-slate-900 px-10 py-4 rounded-2xl font-black shadow-lg hover:bg-amber-400 transition-all flex items-center gap-2"><Icon name="save" size={18} /> SALVAR</button>
-                                    </div>
-                                </header>
-
-                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 overflow-y-auto pr-4 custom-scroll">
-                                    <div className="lg:col-span-8 space-y-10">
-                                        {/* Info Base */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Nome do Produto</label>
-                                                <input className="w-full bg-white/5 border border-white/10 p-5 rounded-3xl font-bold outline-none focus:border-amber-500 transition-all" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-black uppercase text-slate-500 ml-4">SKU</label>
-                                                    <input className="w-full bg-white/5 border border-white/10 p-5 rounded-3xl font-bold text-amber-500 outline-none uppercase" value={editingProduct.sku} onChange={e => setEditingProduct({...editingProduct, sku: e.target.value})} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Peso (g)</label>
-                                                    <input className="w-full bg-white/5 border border-white/10 p-5 rounded-3xl font-bold outline-none" type="number" value={editingProduct.baseWeight} onChange={e => setEditingProduct({...editingProduct, baseWeight: e.target.value})} />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Custos Adicionais Estilo Gemini */}
-                                        <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/5">
-                                            <div className="flex justify-between items-center mb-6">
-                                                <div className="flex items-center gap-2 text-amber-500">
-                                                    <Icon name="layers" size={16} />
-                                                    <h4 className="font-black text-[10px] uppercase">Insumos e Acessórios</h4>
-                                                </div>
-                                                <button onClick={() => setEditingProduct({...editingProduct, additionalCosts: [...(editingProduct.additionalCosts || []), {item: '', value: 0}]})} className="bg-white/10 hover:bg-white/20 text-white text-[9px] font-black px-4 py-2 rounded-full transition-all">+ NOVO CUSTO</button>
-                                            </div>
-                                            <div className="space-y-3">
-                                                {(editingProduct.additionalCosts || []).map((cost, idx) => (
-                                                    <div key={idx} className="flex gap-4 animate-in fade-in slide-in-from-left-2">
-                                                        <input className="flex-1 bg-slate-800/50 p-4 rounded-2xl text-xs font-bold outline-none" placeholder="Ex: Argola Luxo ou Embalagem Especial" value={cost.item} onChange={e => {
-                                                            const nc = [...editingProduct.additionalCosts]; nc[idx].item = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc});
-                                                        }} />
-                                                        <input className="w-24 bg-slate-800/50 p-4 rounded-2xl text-xs font-black outline-none text-amber-500" type="number" placeholder="R$" value={cost.value} onChange={e => {
-                                                            const nc = [...editingProduct.additionalCosts]; nc[idx].value = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc});
-                                                        }} />
-                                                        <button onClick={() => {
-                                                            const nc = editingProduct.additionalCosts.filter((_, i) => i !== idx); setEditingProduct({...editingProduct, additionalCosts: nc});
-                                                        }} className="text-rose-500 hover:scale-110 transition"><Icon name="trash-2" size={16}/></button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* Configuração de Venda */}
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Canal de Venda</label>
-                                                <select className="w-full bg-white/5 border border-white/10 p-5 rounded-3xl font-bold outline-none appearance-none" value={editingProduct.selectedMarketplace} onChange={e => setEditingProduct({...editingProduct, selectedMarketplace: e.target.value})}>
-                                                    {marketplaces.map(m => <option key={m.id} value={m.id} className="bg-slate-900">{m.name}</option>)}
-                                                </select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Tipo de Banho</label>
-                                                <select className="w-full bg-white/5 border border-white/10 p-5 rounded-3xl font-bold outline-none appearance-none text-amber-500" value={editingProduct.bathType} onChange={e => setEditingProduct({...editingProduct, bathType: e.target.value})}>
-                                                    <option value="ouro" className="bg-slate-900">Ouro 18k</option>
-                                                    <option value="prata" className="bg-slate-900">Prata 925</option>
-                                                    <option value="niquel" className="bg-slate-900">Níquel</option>
-                                                    <option value="sem_banho" className="bg-slate-900">Sem Banho</option>
-                                                </select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase text-slate-500 ml-4">Estratégia de Preço</label>
-                                                <select className="w-full bg-white/5 border border-white/10 p-5 rounded-3xl font-bold outline-none appearance-none" value={editingProduct.strategy} onChange={e => setEditingProduct({...editingProduct, strategy: e.target.value})}>
-                                                    <option value="margem" className="bg-slate-900">Pela Margem %</option>
-                                                    <option value="fixo" className="bg-slate-900">Preço Fixo R$</option>
-                                                </select>
-                                            </div>
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-4">
+                            <div className="bg-slate-900 text-white w-full max-w-4xl rounded-[3rem] p-10 shadow-2xl border border-white/10">
+                                <div className="flex justify-between mb-8 items-start">
+                                    <h2 className="text-2xl font-black italic">EDITOR: <span className="text-amber-500">{editingProduct.sku}</span></h2>
+                                    <button onClick={() => setEditingProduct(null)} className="p-2 hover:bg-white/10 rounded-full"><Icon name="x" /></button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-4">
+                                        <input className="w-full bg-white/5 p-4 rounded-2xl border border-white/10 font-bold" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <input type="number" placeholder="Peso" className="bg-white/5 p-4 rounded-2xl border border-white/10" value={editingProduct.baseWeight} onChange={e => setEditingProduct({...editingProduct, baseWeight: e.target.value})} />
+                                            <select className="bg-slate-800 p-4 rounded-2xl" value={editingProduct.bathType} onChange={e => setEditingProduct({...editingProduct, bathType: e.target.value})}>
+                                                <option value="ouro">Ouro</option><option value="prata">Prata</option><option value="niquel">Níquel</option>
+                                            </select>
                                         </div>
                                     </div>
-
-                                    {/* Sidebar de Resultados Dinâmicos */}
-                                    <div className="lg:col-span-4 space-y-6">
-                                        <div className="bg-amber-500 rounded-[2.5rem] p-8 text-slate-900">
-                                            <p className="text-[10px] font-black uppercase opacity-60 mb-2">Preço Final Sugerido</p>
-                                            <div className="flex items-baseline gap-1">
-                                                <span className="text-xl font-bold">R$</span>
-                                                <span className="text-6xl font-black tracking-tighter">{calculateProduct(editingProduct).suggestedPrice.toFixed(2)}</span>
-                                            </div>
+                                    <div className="bg-amber-500 text-slate-900 p-8 rounded-[2.5rem] flex flex-col justify-between">
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase opacity-60">Preço Sugerido</p>
+                                            <p className="text-5xl font-black">R$ {calculateProduct(editingProduct).finalPrice.toFixed(2)}</p>
                                         </div>
-
-                                        <div className="bg-white/5 rounded-[2.5rem] p-8 border border-white/5 space-y-8">
-                                            <div>
-                                                <label className="text-[10px] font-black uppercase text-slate-500 block mb-3">Definir {editingProduct.strategy === 'fixo' ? 'Preço de Venda' : 'Margem de Lucro %'}</label>
-                                                {editingProduct.strategy === 'fixo' ? (
-                                                    <input type="number" className="bg-transparent text-5xl font-black outline-none w-full text-white" value={editingProduct.salePrice} onChange={e => setEditingProduct({...editingProduct, salePrice: e.target.value})} />
-                                                ) : (
-                                                    <div className="flex items-center gap-3">
-                                                        <input type="number" className="bg-transparent text-5xl font-black outline-none w-full text-white" value={editingProduct.targetMargin} onChange={e => setEditingProduct({...editingProduct, targetMargin: e.target.value})} />
-                                                        <span className="text-3xl font-black text-slate-700">%</span>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <div className="space-y-4 pt-8 border-t border-white/10">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-[10px] font-black uppercase text-slate-500">Lucro Líquido</span>
-                                                    <span className="text-2xl font-black text-emerald-400">R$ {calculateProduct(editingProduct).profit.toFixed(2)}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-[10px] font-black uppercase text-slate-500">Custo de Produção</span>
-                                                    <span className="text-lg font-black opacity-60">R$ {calculateProduct(editingProduct).totalProdCost.toFixed(2)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <button onClick={() => { if(confirm("Excluir este SKU permanentemente?")) { db.ref(`products/${editingProduct.id}`).remove(); setEditingProduct(null); }}} className="w-full py-5 rounded-3xl text-rose-500 font-black text-[10px] uppercase tracking-[0.2em] border border-rose-500/20 hover:bg-rose-500/10 transition-all">Excluir Produto</button>
+                                        <button onClick={() => { db.ref(`products/${editingProduct.id}`).set(editingProduct); setEditingProduct(null); }} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black mt-4">SALVAR</button>
                                     </div>
                                 </div>
                             </div>
