@@ -211,33 +211,41 @@
                                             <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 ml-4 uppercase">Banho</label><select className="w-full bg-slate-800 p-4 rounded-2xl font-black uppercase text-xs" value={editingProduct.bathType} onChange={e => setEditingProduct({...editingProduct, bathType: e.target.value})}><option value="ouro">Ouro 18k</option><option value="prata">Prata 925</option><option value="niquel">Níquel</option><option value="sem_banho">Sem Banho</option></select></div>
                                         </div>
 
-                                        {/* ITENS ADICIONAIS COM LABELS DE IDENTIFICAÇÃO */}
-                                        <div className="bg-white/5 p-6 rounded-[2.5rem] border border-white/5 space-y-4">
-                                            <div className="flex justify-between items-center mb-2"><h4 className="text-[10px] font-black text-amber-500 uppercase">Custos & Pesos Extras Somados</h4><button onClick={() => setEditingProduct({...editingProduct, additionalCosts: [...(editingProduct.additionalCosts || []), {item: '', value: 0, weight: 0}]})} className="bg-white/10 px-4 py-2 rounded-xl text-[9px] font-black hover:bg-amber-500 hover:text-slate-900 transition-all">+ ADD</button></div>
-                                            
-                                            {/* Labels Identificadoras dos campos compactos */}
-                                            {editingProduct.additionalCosts?.length > 0 && (
-                                                <div className="flex gap-2 px-1 opacity-40">
-                                                    <span className="flex-[3] text-[8px] font-black uppercase tracking-tighter">Nome do Item</span>
-                                                    <span className="flex-1 text-[8px] font-black uppercase tracking-tighter text-center">Preço R$</span>
-                                                    <span className="flex-1 text-[8px] font-black uppercase tracking-tighter text-center">Peso (g)</span>
-                                                    <div className="w-8"></div>
-                                                </div>
-                                            )}
+                                       {/* ITENS ADICIONAIS COM LABELS DE IDENTIFICAÇÃO - AJUSTADO */}
+<div className="bg-white/5 p-6 rounded-[2.5rem] border border-white/5 space-y-4">
+    <div className="flex justify-between items-center mb-2">
+        <h4 className="text-[10px] font-black text-amber-500 uppercase">Custos & Pesos Extras Somados</h4>
+        <button onClick={() => setEditingProduct({...editingProduct, additionalCosts: [...(editingProduct.additionalCosts || []), {item: '', value: 0, weight: 0}]})} className="bg-white/10 px-4 py-2 rounded-xl text-[9px] font-black hover:bg-amber-500 hover:text-slate-900 transition-all">+ ADD</button>
+    </div>
+    
+    {editingProduct.additionalCosts?.length > 0 && (
+        <div className="grid grid-cols-12 gap-2 px-1 opacity-40">
+            <span className="col-span-6 text-[8px] font-black uppercase tracking-tighter">Nome do Item</span>
+            <span className="col-span-2 text-[8px] font-black uppercase tracking-tighter text-center">Preço</span>
+            <span className="col-span-2 text-[8px] font-black uppercase tracking-tighter text-center">Peso</span>
+            <div className="col-span-2"></div>
+        </div>
+    )}
 
-                                            <div className="space-y-2">
-                                                {(editingProduct.additionalCosts || []).map((c, idx) => (
-                                                    <div key={idx} className="flex gap-2 items-center">
-                                                        <input className="flex-[3] bg-slate-800 p-3 rounded-xl text-xs font-bold" placeholder="Ex: Argola Luxo" value={c.item} onChange={e => { const nc = [...editingProduct.additionalCosts]; nc[idx].item = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc}); }} />
-                                                        <input type="number" className="flex-1 bg-slate-800 p-3 rounded-xl text-xs font-black text-amber-500 text-center" placeholder="0,00" value={c.value} onChange={e => { const nc = [...editingProduct.additionalCosts]; nc[idx].value = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc}); }} />
-                                                        <input type="number" className="flex-1 bg-slate-800 p-3 rounded-xl text-xs font-black text-emerald-400 text-center" placeholder="0" value={c.weight} onChange={e => { const nc = [...editingProduct.additionalCosts]; nc[idx].weight = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc}); }} />
-                                                        <button onClick={() => setEditingProduct({...editingProduct, additionalCosts: editingProduct.additionalCosts.filter((_, i) => i !== idx)})} className="text-rose-500 p-2 hover:bg-rose-500/10 rounded-lg"><Icon name="trash-2" size={16}/></button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-
+    <div className="space-y-2">
+        {(editingProduct.additionalCosts || []).map((c, idx) => (
+            <div key={idx} className="grid grid-cols-12 gap-2 items-center animate-in slide-in-from-left-2">
+                <div className="col-span-6">
+                    <input className="w-full bg-slate-800 p-3 rounded-xl text-xs font-bold border border-transparent focus:border-white/10" placeholder="Ex: Argola" value={c.item} onChange={e => { const nc = [...editingProduct.additionalCosts]; nc[idx].item = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc}); }} />
+                </div>
+                <div className="col-span-2">
+                    <input type="number" className="w-full bg-slate-800 p-3 rounded-xl text-xs font-black text-amber-500 text-center border border-transparent focus:border-amber-500" placeholder="0" value={c.value} onChange={e => { const nc = [...editingProduct.additionalCosts]; nc[idx].value = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc}); }} />
+                </div>
+                <div className="col-span-2">
+                    <input type="number" className="w-full bg-slate-800 p-3 rounded-xl text-xs font-black text-emerald-400 text-center border border-transparent focus:border-emerald-500" placeholder="0" value={c.weight} onChange={e => { const nc = [...editingProduct.additionalCosts]; nc[idx].weight = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc}); }} />
+                </div>
+                <div className="col-span-2 flex justify-end">
+                    <button onClick={() => setEditingProduct({...editingProduct, additionalCosts: editingProduct.additionalCosts.filter((_, i) => i !== idx)})} className="text-rose-500 p-2 hover:bg-rose-500/10 rounded-lg"><Icon name="trash-2" size={16}/></button>
+                </div>
+            </div>
+        ))}
+    </div>
+</div>
                                     <div className="lg:col-span-5 space-y-6">
                                         <div className="bg-amber-500 text-slate-900 p-10 rounded-[3rem] shadow-xl">
                                             <p className="text-[10px] font-black uppercase opacity-60 mb-1">Sugerido Venda</p>
