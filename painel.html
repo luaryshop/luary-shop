@@ -33,9 +33,7 @@ const firebaseConfig = {
   databaseURL: "https://luary-shop-default-rtdb.firebaseio.com/"
 };
 
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 // ================= APP =================
@@ -47,10 +45,11 @@ const [products, setProducts] = useState([]);
 const [marketplaces, setMarketplaces] = useState([]);
 const [editingProduct, setEditingProduct] = useState(null);
 
-const logistics = { 
+// ================= LOGISTICA =================
+const [logistics, setLogistics] = useState({ 
   packaging: { cost: 1.5 }, 
   bathCosts: { ouro: 0.8, prata: 0.6, niquel: 0.4, sem_banho: 0 } 
-};
+});
 
 // ================= LOAD =================
 useEffect(() => {
@@ -158,21 +157,44 @@ setEditingProduct(null);
 return (
 <div className="flex min-h-screen">
 
-<aside className="w-64 bg-slate-900 text-white p-8 fixed h-full">
-<h1 className="text-2xl font-black">LUARY SHOP</h1>
+<aside className="w-64 bg-slate-900 text-white p-6">
+<h1 className="text-xl font-black mb-6">LUARY SHOP</h1>
 
-<button onClick={()=>setActiveTab('catalogo')}>Catálogo</button>
+<button onClick={()=>setActiveTab('catalogo')} className="block mb-2">📦 Catálogo</button>
+<button onClick={()=>setActiveTab('canais')} className="block">💰 Canais</button>
 </aside>
 
-<main className="ml-64 p-12 w-full">
+<main className="flex-1 p-6">
 
-<div className="mb-6">
+{/* ================= CATÁLOGO ================= */}
+{activeTab==="catalogo" && (
+<>
+<div className="flex justify-between mb-6">
+
 <input placeholder="Buscar SKU"
+className="p-3 border rounded"
 onChange={e=>setSearchTerm(e.target.value)}
-className="p-3 border rounded"/>
+/>
+
+<button
+onClick={()=>{
+const key = db.ref('products').push().key;
+const newP = {
+id:key, sku:"NOVO", name:"Novo Produto",
+baseWeight:0, bathType:"ouro",
+strategy:"margem", targetMargin:50,
+additionalCosts:[], selectedMarketplace:"shopee"
+};
+db.ref("products/"+key).set(newP);
+setEditingProduct(newP);
+}}
+className="bg-black text-white px-4 py-2 rounded">
+Cadastrar SKU
+</button>
+
 </div>
 
-<div className="grid grid-cols-4 gap-6">
+<div className="grid grid-cols-3 gap-4">
 
 {products
 .filter(p=>p.sku?.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -182,8 +204,8 @@ const r = calculateProduct(p);
 return(
 <div key={p.id} className="bg-white p-4 rounded shadow">
 
-<p>{p.name}</p>
-<p>{p.sku}</p>
+<p className="font-bold">{p.name}</p>
+<p className="text-xs">{p.sku}</p>
 
 <p>R$ {r.finalPrice.toFixed(2)}</p>
 <p className={r.profit>0?"text-green-600":"text-red-600"}>
@@ -197,14 +219,49 @@ R$ {r.profit.toFixed(2)}
 })}
 
 </div>
+</>
+)}
+
+{/* ================= CANAIS ================= */}
+{activeTab==="canais" && (
+<div>
+<h2 className="text-xl font-bold mb-4">Marketplaces</h2>
+
+{marketplaces.map(m=>(
+<div key={m.id} className="bg-white p-4 mb-3 rounded">
+
+<p>{m.name}</p>
+<p>Comissão: {m.commission}%</p>
+
+</div>
+))}
+</div>
+)}
 
 </main>
+
+{/* ================= MODAL ================= */}
+{editingProduct && (
+<div className="fixed inset-0 bg-black/80 flex items-center justify-center">
+
+<div className="bg-white p-6 rounded w-96">
+
+<input
+value={editingProduct.name}
+onChange={e=>setEditingProduct({...editingProduct,name:e.target.value})}
+/>
+
+<button onClick={handleSave}>Salvar</button>
+
+</div>
+</div>
+)}
 
 </div>
 );
 };
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 
 </script>
 </body>
