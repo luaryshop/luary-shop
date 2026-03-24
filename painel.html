@@ -1,283 +1,230 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luary Shop - Gestor Oficial</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Gestor Marketplace PRO</title>
 
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    
-    <script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
 
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;900&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
-    <style>
-        body { font-family: 'Poppins', sans-serif; background-color: #F8FAFC; }
-        .custom-scroll::-webkit-scrollbar { width: 5px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-    </style>
+<style>
+body { background:#f8fafc; font-family:Arial }
+</style>
 </head>
+
 <body>
-    <div id="root"></div>
+<div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+<script type="text/babel">
 
-        // --- CONFIGURAÇÃO FIREBASE ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
-            databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
-        };
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+const firebaseConfig = {
+  apiKey: "SUA_API_KEY",
+  databaseURL: "SUA_DATABASE_URL"
+};
 
-        const App = () => {
-            const [activeTab, setActiveTab] = useState('catalogo');
-            const [searchTerm, setSearchTerm] = useState('');
-            const [products, setProducts] = useState([]);
-            const [marketplaces, setMarketplaces] = useState([]);
-            const [logistics, setLogistics] = useState({ 
-                packaging: { cost: 1.5 }, 
-                bathCosts: { ouro: 0.8, prata: 0.6, niquel: 0.4, sem_banho: 0 } 
-            });
-            const [editingProduct, setEditingProduct] = useState(null);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-            useEffect(() => {
-                db.ref('products').on('value', s => setProducts(Object.entries(s.val() || {}).map(([id, v]) => ({id, ...v}))));
-                db.ref('marketplaces').on('value', s => {
-                    const data = s.val();
-                    if (data) setMarketplaces(Object.entries(data).map(([id, v]) => ({id, ...v})));
-                    else {
-                        // Seed inicial se estiver vazio
-                        const initialMP = [
-                            { id: 'shopee', name: 'Shopee', commission: 20, fixedFee: 3 },
-                            { id: 'ml', name: 'Mercado Livre', commission: 16.5, fixedFee: 6 }
-                        ];
-                        initialMP.forEach(m => db.ref(`marketplaces/${m.id}`).set(m));
-                    }
-                });
-            }, []);
+const { useState, useEffect } = React;
 
-            // --- LÓGICA DE CÁLCULO IGUAL AO 222.TXT ---
-            const calculateProduct = (prod) => {
-                const mp = marketplaces.find(m => m.id === prod.selectedMarketplace) || marketplaces[0] || { commission: 0, fixedFee: 0 };
-                const bathCost = (Number(prod.baseWeight) || 0) * (logistics.bathCosts[prod.bathType] || 0);
-                const extraCosts = (prod.additionalCosts || []).reduce((acc, c) => acc + Number(c.value || 0), 0);
-                
-                const totalProdCost = bathCost + extraCosts + Number(logistics.packaging.cost);
-                const divisor = (1 - (Number(mp.commission) + Number(prod.targetMargin || 0)) / 100);
-                const suggestedPrice = divisor > 0 ? (totalProdCost + Number(mp.fixedFee)) / divisor : 0;
-                
-                const finalPrice = prod.strategy === 'margem' ? suggestedPrice : Number(prod.salePrice || 0);
-                const feesVal = (finalPrice * (Number(mp.commission) / 100)) + Number(mp.fixedFee);
-                const profit = finalPrice - totalProdCost - feesVal;
+const App = () => {
 
-                return { totalProdCost, suggestedPrice, finalPrice, profit };
-            };
+const [products, setProducts] = useState([]);
+const [marketplaces, setMarketplaces] = useState([]);
+const [editing, setEditing] = useState(null);
 
-            const handleSave = () => {
-                db.ref(`products/${editingProduct.id}`).update(editingProduct);
-                setEditingProduct(null);
-            };
+const [logistics, setLogistics] = useState({
+  packaging:{ cost:1.5, weight:20 },
+  bathCosts:{ ouro:0.8, prata:0.6, niquel:0.4 }
+});
 
-            return (
-                <div className="flex min-h-screen">
-                    {/* Sidebar Estilo 222.txt */}
-                    <aside className="w-64 bg-slate-900 text-white p-8 fixed h-full flex flex-col">
-                        <div className="mb-12">
-                            <h1 className="text-2xl font-black tracking-tighter italic">LUARY SHOP</h1>
-                            <p className="text-[9px] font-bold text-amber-500 tracking-[0.2em] uppercase">Gestor de Negócios</p>
-                        </div>
-                        <nav className="space-y-4">
-                            <button onClick={() => setActiveTab('catalogo')} className={`w-full text-left p-4 rounded-3xl font-bold flex items-center gap-3 ${activeTab === 'catalogo' ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:bg-white/5'}`}>
-                                <span>📦</span> Catálogo
-                            </button>
-                            <button onClick={() => setActiveTab('vendas')} className={`w-full text-left p-4 rounded-3xl font-bold flex items-center gap-3 ${activeTab === 'vendas' ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:bg-white/5'}`}>
-                                <span>💰</span> Canais
-                            </button>
-                        </nav>
-                    </aside>
 
-                    <main className="ml-64 p-12 w-full">
-                        {activeTab === 'catalogo' && (
-                            <div className="animate-in fade-in duration-700">
-                                <div className="flex justify-between items-center mb-12">
-                                    <div className="relative w-96">
-                                        <input className="w-full p-5 bg-white rounded-[2rem] shadow-sm border-0 outline-none focus:ring-2 ring-amber-500/30 font-bold" placeholder="Procurar SKU..." onChange={e => setSearchTerm(e.target.value)} />
-                                    </div>
-                                    <button onClick={() => {
-                                        const key = db.ref('products').push().key;
-                                        const newP = { id: key, sku: 'NOVO', name: 'Novo Item', baseWeight: 0, bathType: 'ouro', strategy: 'margem', targetMargin: 50, selectedMarketplace: 'shopee', additionalCosts: [] };
-                                        db.ref(`products/${key}`).set(newP);
-                                        setEditingProduct(newP);
-                                    }} className="bg-slate-900 text-white px-10 py-5 rounded-[2rem] font-black shadow-xl hover:scale-105 transition-all">
-                                        CADASTRAR SKU
-                                    </button>
-                                </div>
+// ===================== SEED PRODUTOS =====================
+useEffect(() => {
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                                    {products.filter(p => p.sku?.toLowerCase().includes(searchTerm.toLowerCase())).map(prod => {
-                                        const res = calculateProduct(prod);
-                                        return (
-                                            <div key={prod.id} className="bg-white rounded-[3rem] border border-slate-100 overflow-hidden shadow-sm hover:shadow-2xl transition-all group">
-                                                <div className="aspect-square bg-slate-50 relative">
-                                                    {prod.imageUrl ? <img src={prod.imageUrl} className="w-full h-full object-cover" /> : <div className="h-full flex items-center justify-center text-slate-200">1:1</div>}
-                                                    <button onClick={() => setEditingProduct(prod)} className="absolute bottom-6 right-6 bg-amber-500 p-4 rounded-2xl font-black shadow-xl opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100">EDITAR</button>
-                                                </div>
-                                                <div className="p-8">
-                                                    <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-3 py-1 rounded-full uppercase mb-3 inline-block">{prod.sku}</span>
-                                                    <h3 className="font-bold text-slate-800 leading-tight h-10 line-clamp-2">{prod.name}</h3>
-                                                    <div className="mt-6 pt-6 border-t border-slate-50 flex justify-between items-end">
-                                                        <div>
-                                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Venda</p>
-                                                            <p className="text-xl font-black text-slate-900">R$ {res.finalPrice.toFixed(2)}</p>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Lucro</p>
-                                                            <p className={`text-sm font-black ${res.profit > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>R$ {res.profit.toFixed(2)}</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-                    </main>
+db.ref("products").once("value", snap => {
+if(!snap.exists()){
 
-                    {/* MODAL DARK IGUAL AO 222.TXT */}
-                    {editingProduct && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-xl p-8">
-                            <div className="bg-slate-900 text-white w-full max-w-6xl rounded-[4rem] p-12 flex flex-col max-h-[90vh] overflow-hidden shadow-[0_0_100px_rgba(245,158,11,0.1)]">
-                                <div className="flex justify-between items-center mb-12">
-                                    <div>
-                                        <h2 className="text-4xl font-black italic">EDITOR TÉCNICO</h2>
-                                        <p className="text-amber-500 font-bold text-xs uppercase tracking-widest">Configuração de Custos e Margens</p>
-                                    </div>
-                                    <div className="flex gap-4">
-                                        <button onClick={() => setEditingProduct(null)} className="px-8 py-4 font-bold text-slate-500 hover:text-white transition">Fechar</button>
-                                        <button onClick={handleSave} className="bg-amber-500 text-slate-900 px-12 py-5 rounded-3xl font-black text-lg shadow-xl hover:bg-amber-400 transition-all">SALVAR ALTERAÇÕES</button>
-                                    </div>
-                                </div>
+const seed = [
+{ sku:"CHV-SAOBENTO-01865", name:"Chaveiro São Bento" },
+{ sku:"CHV-FRD-CVALO-00611", name:"Chaveiro Ferradura Cavalo" },
+{ sku:"SKU-CASAL-SERTANEJO-02343", name:"Chaveiro Casal Sertanejo" },
+{ sku:"SKU-NSAPARECIDA-01822", name:"Chaveiro N S Aparecida" },
+{ sku:"SKU-MEDALHA-SAGRADO-01811", name:"Sagrado Coração" },
+{ sku:"SKU-CRUZ-OURO-01777", name:"Chaveiro Cruz" },
+{ sku:"SKU-ANJO-GUARDA-01999", name:"Anjo da Guarda" },
+{ sku:"SKU-FE-OURO-01888", name:"Chaveiro Fé" },
+{ sku:"SKU-TERCO-OURO-02001", name:"Chaveiro Terço" },
+{ sku:"SKU-SAO-JORGE-02002", name:"São Jorge" },
+{ sku:"SKU-SAGRADA-FAMILIA-02003", name:"Sagrada Família" },
+{ sku:"SKU-CRUCIFIXO-02004", name:"Crucifixo" },
+{ sku:"SKU-ESPIRITO-SANTO-02005", name:"Espírito Santo" },
+{ sku:"SKU-CORACAO-JESUS-02006", name:"Coração de Jesus" },
+{ sku:"SKU-MEDALHA-MILAGROSA-02007", name:"Medalha Milagrosa" },
+{ sku:"SKU-ROSARIO-02008", name:"Rosário" },
+{ sku:"SKU-FLOR-OURO-01", name:"Flor Dourada" },
+{ sku:"SKU-ESTRELA-OURO-02", name:"Estrela Ouro" }
+];
 
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-12 overflow-y-auto pr-6 custom-scroll">
-                                    <div className="md:col-span-8 space-y-10">
-                                        {/* Secção 1 */}
-                                        <div className="grid grid-cols-2 gap-6">
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase opacity-40 ml-4">Nome do Produto</label>
-                                                <input className="w-full bg-white/5 border border-white/10 p-6 rounded-3xl font-bold outline-none focus:border-amber-500" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-black uppercase opacity-40 ml-4">SKU</label>
-                                                    <input className="w-full bg-white/5 border border-white/10 p-6 rounded-3xl font-bold text-amber-500 outline-none uppercase" value={editingProduct.sku} onChange={e => setEditingProduct({...editingProduct, sku: e.target.value})} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-black uppercase opacity-40 ml-4">Peso (g)</label>
-                                                    <input className="w-full bg-white/5 border border-white/10 p-6 rounded-3xl font-bold outline-none" type="number" value={editingProduct.baseWeight} onChange={e => setEditingProduct({...editingProduct, baseWeight: e.target.value})} />
-                                                </div>
-                                            </div>
-                                        </div>
+seed.forEach(p=>{
+const key = db.ref("products").push().key;
+db.ref("products/"+key).set({
+id:key,
+...p,
+baseWeight:15,
+bathType:"ouro",
+strategy:"margem",
+targetMargin:50,
+salePrice:0,
+additionalCosts:[],
+mimos:[],
+selectedMarketplace:"shopee"
+});
+});
 
-                                        {/* Custos Extras Estilo 222.txt */}
-                                        <div className="bg-white/5 p-8 rounded-[3rem] border border-white/5">
-                                            <div className="flex justify-between items-center mb-6">
-                                                <h4 className="font-black text-sm uppercase tracking-tighter">Custos de Insumos Adicionais</h4>
-                                                <button onClick={() => setEditingProduct({...editingProduct, additionalCosts: [...(editingProduct.additionalCosts || []), {item: '', value: 0}]})} className="bg-amber-500 text-slate-900 text-[10px] font-black px-4 py-2 rounded-full">+ NOVO CUSTO</button>
-                                            </div>
-                                            <div className="space-y-3">
-                                                {(editingProduct.additionalCosts || []).map((cost, idx) => (
-                                                    <div key={idx} className="flex gap-4">
-                                                        <input className="flex-1 bg-slate-800 p-4 rounded-2xl text-xs font-bold outline-none" placeholder="Ex: Argola Luxo" value={cost.item} onChange={e => {
-                                                            const nc = [...editingProduct.additionalCosts]; nc[idx].item = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc});
-                                                        }} />
-                                                        <input className="w-32 bg-slate-800 p-4 rounded-2xl text-xs font-bold outline-none text-emerald-400" type="number" placeholder="R$" value={cost.value} onChange={e => {
-                                                            const nc = [...editingProduct.additionalCosts]; nc[idx].value = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc});
-                                                        }} />
-                                                        <button onClick={() => {
-                                                            const nc = editingProduct.additionalCosts.filter((_, i) => i !== idx); setEditingProduct({...editingProduct, additionalCosts: nc});
-                                                        }} className="text-rose-500 font-bold px-4 hover:scale-125 transition">×</button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
+}
+});
 
-                                        {/* Marketplaces e Estratégia */}
-                                        <div className="grid grid-cols-3 gap-6">
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase opacity-40 ml-4">Marketplace</label>
-                                                <select className="w-full bg-white/5 border border-white/10 p-5 rounded-3xl font-bold outline-none appearance-none" value={editingProduct.selectedMarketplace} onChange={e => setEditingProduct({...editingProduct, selectedMarketplace: e.target.value})}>
-                                                    {marketplaces.map(m => <option key={m.id} value={m.id} className="bg-slate-900">{m.name}</option>)}
-                                                </select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase opacity-40 ml-4">Tipo de Banho</label>
-                                                <select className="w-full bg-white/5 border border-white/10 p-5 rounded-3xl font-bold outline-none appearance-none" value={editingProduct.bathType} onChange={e => setEditingProduct({...editingProduct, bathType: e.target.value})}>
-                                                    <option value="ouro" className="bg-slate-900">Ouro 18k</option>
-                                                    <option value="prata" className="bg-slate-900">Prata 925</option>
-                                                    <option value="niquel" className="bg-slate-900">Níquel</option>
-                                                    <option value="sem_banho" className="bg-slate-900">Sem Banho</option>
-                                                </select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase opacity-40 ml-4">Estratégia</label>
-                                                <select className="w-full bg-white/5 border border-white/10 p-5 rounded-3xl font-bold outline-none appearance-none" value={editingProduct.strategy} onChange={e => setEditingProduct({...editingProduct, strategy: e.target.value})}>
-                                                    <option value="margem" className="bg-slate-900">Por Margem %</option>
-                                                    <option value="fixo" className="bg-slate-900">Preço Fixo</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
+db.ref("products").on("value", s=>{
+setProducts(Object.values(s.val()||{}));
+});
 
-                                    {/* Sidebar de Resultados Estilo 222.txt */}
-                                    <div className="md:col-span-4 bg-white/5 rounded-[3rem] p-10 flex flex-col justify-between border border-white/5">
-                                        <div className="space-y-8">
-                                            {editingProduct.strategy === 'fixo' ? (
-                                                <div>
-                                                    <label className="text-[10px] font-black uppercase opacity-40 block mb-2">Preço Final de Venda</label>
-                                                    <input type="number" className="bg-transparent text-6xl font-black outline-none w-full text-amber-500" value={editingProduct.salePrice} onChange={e => setEditingProduct({...editingProduct, salePrice: e.target.value})} />
-                                                </div>
-                                            ) : (
-                                                <div>
-                                                    <label className="text-[10px] font-black uppercase opacity-40 block mb-2">Margem de Lucro Desejada %</label>
-                                                    <input type="number" className="bg-transparent text-6xl font-black outline-none w-full text-amber-500" value={editingProduct.targetMargin} onChange={e => setEditingProduct({...editingProduct, targetMargin: e.target.value})} />
-                                                </div>
-                                            )}
+db.ref("marketplaces").once("value", s=>{
+if(!s.exists()){
+db.ref("marketplaces/shopee").set({
+id:"shopee", name:"Shopee", commission:20, fixedFee:3, tax:0, extraFees:[]
+});
+db.ref("marketplaces/ml").set({
+id:"ml", name:"Mercado Livre", commission:16, fixedFee:6, tax:4, extraFees:[]
+});
+}
+});
 
-                                            <div className="space-y-6 pt-10 border-t border-white/10">
-                                                <div className="flex justify-between items-end">
-                                                    <p className="text-[10px] font-black uppercase opacity-40">Lucro Estimado</p>
-                                                    <p className="text-3xl font-black text-emerald-400">R$ {calculateProduct(editingProduct).profit.toFixed(2)}</p>
-                                                </div>
-                                                <div className="flex justify-between items-end">
-                                                    <p className="text-[10px] font-black uppercase opacity-40">Custo Total</p>
-                                                    <p className="text-xl font-black text-slate-300">R$ {calculateProduct(editingProduct).totalProdCost.toFixed(2)}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="mt-8 text-center">
-                                            <button onClick={() => { if(confirm("Remover SKU permanentemente?")) { db.ref(`products/${editingProduct.id}`).remove(); setEditingProduct(null); }}} className="text-rose-500 text-[10px] font-black uppercase tracking-widest hover:underline">Remover Produto</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        };
+db.ref("marketplaces").on("value", s=>{
+setMarketplaces(Object.values(s.val()||{}));
+});
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+},[]);
+
+
+// ===================== CALCULO =====================
+const calc = (p) => {
+
+const mp = marketplaces.find(m=>m.id===p.selectedMarketplace)||{};
+
+const addWeight = (p.additionalCosts||[]).reduce((a,c)=>a+Number(c.weight||0),0);
+const mimWeight = (p.mimos||[]).reduce((a,m)=>a+Number(m.weight||0),0);
+
+const totalWeight = p.baseWeight + logistics.packaging.weight + addWeight + mimWeight;
+
+let bathCost = p.baseWeight * (logistics.bathCosts[p.bathType]||0);
+
+const extraCosts = (p.additionalCosts||[]).reduce((a,c)=>a+Number(c.value||0),0);
+const mimosCost = (p.mimos||[]).reduce((a,m)=>a+Number(m.value||0),0);
+
+const totalCost = bathCost + extraCosts + mimosCost + logistics.packaging.cost;
+
+const percent = (mp.commission||0)+(mp.tax||0);
+const fixed = (mp.fixedFee||0);
+
+const divisor = 1 - ((percent + p.targetMargin)/100);
+
+const suggested = divisor>0 ? (totalCost + fixed)/divisor : 0;
+
+const price = p.strategy==="margem" ? suggested : Number(p.salePrice||0);
+
+const fees = (price * percent/100) + fixed;
+
+const profit = price - totalCost - fees;
+const margin = price>0 ? (profit/price)*100 : 0;
+
+return {price, suggested, profit, margin};
+
+};
+
+
+// ===================== UI =====================
+return(
+<div className="p-6">
+
+<h1 className="text-2xl font-bold mb-6">Gestor Marketplace</h1>
+
+<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+{products.map(p=>{
+const r = calc(p);
+
+return(
+<div key={p.id} className="bg-white p-4 rounded-xl shadow">
+
+<h3 className="font-bold text-sm">{p.name}</h3>
+<p className="text-xs text-gray-400">{p.sku}</p>
+
+<div className="mt-3">
+<p>Venda: R$ {r.price.toFixed(2)}</p>
+<p>Sugerido: R$ {r.suggested.toFixed(2)}</p>
+<p className={r.profit>0?"text-green-600":"text-red-600"}>
+Lucro: R$ {r.profit.toFixed(2)}
+</p>
+<p>Margem: {r.margin.toFixed(1)}%</p>
+</div>
+
+<button 
+onClick={()=>setEditing(p)}
+className="mt-3 bg-black text-white px-3 py-2 rounded">
+Editar
+</button>
+
+</div>
+);
+})}
+
+</div>
+
+
+{/* MODAL */}
+{editing && (
+<div className="fixed inset-0 bg-black/70 flex items-center justify-center">
+
+<div className="bg-white p-6 rounded-xl w-96">
+
+<h2 className="font-bold mb-4">Editar</h2>
+
+<input className="border p-2 w-full mb-2"
+value={editing.name}
+onChange={e=>setEditing({...editing,name:e.target.value})}
+/>
+
+<input type="number" className="border p-2 w-full mb-2"
+value={editing.targetMargin}
+onChange={e=>setEditing({...editing,targetMargin:e.target.value})}
+/>
+
+<button
+onClick={()=>{
+db.ref("products/"+editing.id).update(editing);
+setEditing(null);
+}}
+className="bg-green-600 text-white px-4 py-2 rounded w-full">
+Salvar
+</button>
+
+</div>
+</div>
+)}
+
+</div>
+);
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+
+</script>
 </body>
 </html>
