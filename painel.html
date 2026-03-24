@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gestor Marketplace PRO</title>
 
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -12,132 +12,146 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-
-<style>
-body { background:#f8fafc; font-family:Arial }
-</style>
 </head>
 
-<body>
+<body class="bg-slate-100">
 <div id="root"></div>
 
 <script type="text/babel">
 
-const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
-  databaseURL: "SUA_DATABASE_URL"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
 const { useState, useEffect } = React;
 
+// ================= FIREBASE CONFIG =================
+const firebaseConfig = {
+  apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
+  databaseURL: "https://luary-shop-default-rtdb.firebaseio.com/"
+};
+
+let db;
+
+try {
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  db = firebase.database();
+} catch (e) {
+  console.error("Firebase erro → fallback ativado", e);
+
+  // fallback evita tela branca
+  db = {
+    data: { products: {}, marketplaces: {} },
+    ref(path) {
+      return {
+        once: async () => ({ exists: () => false }),
+        on: () => {},
+        set: () => {},
+        update: () => {},
+        push: () => ({ key: Date.now().toString() })
+      };
+    }
+  };
+}
+
+// ================= APP =================
 const App = () => {
 
 const [products, setProducts] = useState([]);
 const [marketplaces, setMarketplaces] = useState([]);
 const [editing, setEditing] = useState(null);
 
-const [logistics, setLogistics] = useState({
-  packaging:{ cost:1.5, weight:20 },
-  bathCosts:{ ouro:0.8, prata:0.6, niquel:0.4 }
-});
+// ================= LOGISTICA =================
+const logistics = {
+  packaging: { cost:1.5 },
+  bathCosts: { ouro:0.8, prata:0.6, niquel:0.4 }
+};
 
-
-// ===================== SEED PRODUTOS =====================
+// ================= SEED =================
 useEffect(() => {
 
 db.ref("products").once("value", snap => {
-if(!snap.exists()){
+  if (!snap.exists()) {
 
-const seed = [
-{ sku:"CHV-SAOBENTO-01865", name:"Chaveiro São Bento" },
-{ sku:"CHV-FRD-CVALO-00611", name:"Chaveiro Ferradura Cavalo" },
-{ sku:"SKU-CASAL-SERTANEJO-02343", name:"Chaveiro Casal Sertanejo" },
-{ sku:"SKU-NSAPARECIDA-01822", name:"Chaveiro N S Aparecida" },
-{ sku:"SKU-MEDALHA-SAGRADO-01811", name:"Sagrado Coração" },
-{ sku:"SKU-CRUZ-OURO-01777", name:"Chaveiro Cruz" },
-{ sku:"SKU-ANJO-GUARDA-01999", name:"Anjo da Guarda" },
-{ sku:"SKU-FE-OURO-01888", name:"Chaveiro Fé" },
-{ sku:"SKU-TERCO-OURO-02001", name:"Chaveiro Terço" },
-{ sku:"SKU-SAO-JORGE-02002", name:"São Jorge" },
-{ sku:"SKU-SAGRADA-FAMILIA-02003", name:"Sagrada Família" },
-{ sku:"SKU-CRUCIFIXO-02004", name:"Crucifixo" },
-{ sku:"SKU-ESPIRITO-SANTO-02005", name:"Espírito Santo" },
-{ sku:"SKU-CORACAO-JESUS-02006", name:"Coração de Jesus" },
-{ sku:"SKU-MEDALHA-MILAGROSA-02007", name:"Medalha Milagrosa" },
-{ sku:"SKU-ROSARIO-02008", name:"Rosário" },
-{ sku:"SKU-FLOR-OURO-01", name:"Flor Dourada" },
-{ sku:"SKU-ESTRELA-OURO-02", name:"Estrela Ouro" }
-];
+    const seed = [
+      { sku:"CHV-SAOBENTO-01865", name:"Chaveiro São Bento" },
+      { sku:"CHV-FRD-CVALO-00611", name:"Chaveiro Ferradura Cavalo" },
+      { sku:"SKU-CASAL-SERTANEJO-02343", name:"Casal Sertanejo" },
+      { sku:"SKU-NSAPARECIDA-01822", name:"Nossa Senhora" },
+      { sku:"SKU-MEDALHA-SAGRADO-01811", name:"Sagrado Coração" },
+      { sku:"SKU-CRUZ-OURO-01777", name:"Cruz Ouro" },
+      { sku:"SKU-ANJO-GUARDA-01999", name:"Anjo da Guarda" },
+      { sku:"SKU-FE-OURO-01888", name:"Fé Ouro" },
+      { sku:"SKU-TERCO-OURO-02001", name:"Terço Ouro" },
+      { sku:"SKU-SAO-JORGE-02002", name:"São Jorge" },
+      { sku:"SKU-SAGRADA-FAMILIA-02003", name:"Sagrada Família" },
+      { sku:"SKU-CRUCIFIXO-02004", name:"Crucifixo" },
+      { sku:"SKU-ESPIRITO-SANTO-02005", name:"Espírito Santo" },
+      { sku:"SKU-CORACAO-JESUS-02006", name:"Coração de Jesus" },
+      { sku:"SKU-MEDALHA-MILAGROSA-02007", name:"Medalha Milagrosa" },
+      { sku:"SKU-ROSARIO-02008", name:"Rosário" }
+    ];
 
-seed.forEach(p=>{
-const key = db.ref("products").push().key;
-db.ref("products/"+key).set({
-id:key,
-...p,
-baseWeight:15,
-bathType:"ouro",
-strategy:"margem",
-targetMargin:50,
-salePrice:0,
-additionalCosts:[],
-mimos:[],
-selectedMarketplace:"shopee"
-});
+    seed.forEach(p => {
+      const key = db.ref("products").push().key;
+      db.ref("products/"+key).set({
+        id:key,
+        ...p,
+        baseWeight:15,
+        bathType:"ouro",
+        strategy:"margem",
+        targetMargin:50,
+        salePrice:0,
+        selectedMarketplace:"shopee"
+      });
+    });
+  }
 });
 
-}
+// carregar produtos
+db.ref("products").on("value", s => {
+  const data = s.val();
+  setProducts(data ? Object.values(data) : []);
 });
 
-db.ref("products").on("value", s=>{
-setProducts(Object.values(s.val()||{}));
+// marketplaces
+db.ref("marketplaces").once("value", s => {
+  if (!s.exists()) {
+    db.ref("marketplaces/shopee").set({
+      id:"shopee", name:"Shopee", commission:20, fixedFee:3, tax:0
+    });
+    db.ref("marketplaces/ml").set({
+      id:"ml", name:"Mercado Livre", commission:16, fixedFee:6, tax:4
+    });
+  }
 });
 
-db.ref("marketplaces").once("value", s=>{
-if(!s.exists()){
-db.ref("marketplaces/shopee").set({
-id:"shopee", name:"Shopee", commission:20, fixedFee:3, tax:0, extraFees:[]
-});
-db.ref("marketplaces/ml").set({
-id:"ml", name:"Mercado Livre", commission:16, fixedFee:6, tax:4, extraFees:[]
-});
-}
-});
-
-db.ref("marketplaces").on("value", s=>{
-setMarketplaces(Object.values(s.val()||{}));
+db.ref("marketplaces").on("value", s => {
+  const data = s.val();
+  setMarketplaces(data ? Object.values(data) : []);
 });
 
 },[]);
 
-
-// ===================== CALCULO =====================
+// ================= CALCULO SEGURO =================
 const calc = (p) => {
 
-const mp = marketplaces.find(m=>m.id===p.selectedMarketplace)||{};
+if (!p) return {price:0, suggested:0, profit:0, margin:0};
 
-const addWeight = (p.additionalCosts||[]).reduce((a,c)=>a+Number(c.weight||0),0);
-const mimWeight = (p.mimos||[]).reduce((a,m)=>a+Number(m.weight||0),0);
+const mp = marketplaces.find(m => m.id === p.selectedMarketplace) || {};
 
-const totalWeight = p.baseWeight + logistics.packaging.weight + addWeight + mimWeight;
+const percent = (Number(mp.commission)||0) + (Number(mp.tax)||0);
+const fixed = Number(mp.fixedFee)||0;
 
-let bathCost = p.baseWeight * (logistics.bathCosts[p.bathType]||0);
+const totalCost =
+  (Number(p.baseWeight)||0) * (logistics.bathCosts[p.bathType]||0)
+  + logistics.packaging.cost;
 
-const extraCosts = (p.additionalCosts||[]).reduce((a,c)=>a+Number(c.value||0),0);
-const mimosCost = (p.mimos||[]).reduce((a,m)=>a+Number(m.value||0),0);
-
-const totalCost = bathCost + extraCosts + mimosCost + logistics.packaging.cost;
-
-const percent = (mp.commission||0)+(mp.tax||0);
-const fixed = (mp.fixedFee||0);
-
-const divisor = 1 - ((percent + p.targetMargin)/100);
+const divisor = 1 - ((percent + Number(p.targetMargin||0))/100);
 
 const suggested = divisor>0 ? (totalCost + fixed)/divisor : 0;
 
-const price = p.strategy==="margem" ? suggested : Number(p.salePrice||0);
+const price = p.strategy==="margem"
+  ? suggested
+  : Number(p.salePrice||0);
 
 const fees = (price * percent/100) + fixed;
 
@@ -145,71 +159,71 @@ const profit = price - totalCost - fees;
 const margin = price>0 ? (profit/price)*100 : 0;
 
 return {price, suggested, profit, margin};
-
 };
 
-
-// ===================== UI =====================
-return(
+// ================= UI =================
+return (
 <div className="p-6">
 
 <h1 className="text-2xl font-bold mb-6">Gestor Marketplace</h1>
 
 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-{products.map(p=>{
-const r = calc(p);
+{products.map(p => {
+  const r = calc(p);
 
-return(
-<div key={p.id} className="bg-white p-4 rounded-xl shadow">
+  return (
+  <div key={p.id} className="bg-white p-4 rounded-xl shadow">
 
-<h3 className="font-bold text-sm">{p.name}</h3>
-<p className="text-xs text-gray-400">{p.sku}</p>
+    <h3 className="font-bold text-sm">{p.name}</h3>
+    <p className="text-xs text-gray-400">{p.sku}</p>
 
-<div className="mt-3">
-<p>Venda: R$ {r.price.toFixed(2)}</p>
-<p>Sugerido: R$ {r.suggested.toFixed(2)}</p>
-<p className={r.profit>0?"text-green-600":"text-red-600"}>
-Lucro: R$ {r.profit.toFixed(2)}
-</p>
-<p>Margem: {r.margin.toFixed(1)}%</p>
-</div>
+    <div className="mt-3 text-sm">
+      <p>Venda: R$ {r.price.toFixed(2)}</p>
+      <p>Sugerido: R$ {r.suggested.toFixed(2)}</p>
+      <p className={r.profit>0?"text-green-600":"text-red-600"}>
+        Lucro: R$ {r.profit.toFixed(2)}
+      </p>
+      <p>Margem: {r.margin.toFixed(1)}%</p>
+    </div>
 
-<button 
-onClick={()=>setEditing(p)}
-className="mt-3 bg-black text-white px-3 py-2 rounded">
-Editar
-</button>
+    <button
+      onClick={()=>setEditing(p)}
+      className="mt-3 bg-black text-white px-3 py-2 rounded w-full">
+      Editar
+    </button>
 
-</div>
-);
+  </div>
+  );
 })}
 
 </div>
-
 
 {/* MODAL */}
 {editing && (
 <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
 
-<div className="bg-white p-6 rounded-xl w-96">
+<div className="bg-white p-6 rounded-xl w-80">
 
-<h2 className="font-bold mb-4">Editar</h2>
+<h2 className="font-bold mb-4">Editar Produto</h2>
 
-<input className="border p-2 w-full mb-2"
+<input
+className="border p-2 w-full mb-2"
 value={editing.name}
-onChange={e=>setEditing({...editing,name:e.target.value})}
+onChange={e=>setEditing({...editing, name:e.target.value})}
 />
 
-<input type="number" className="border p-2 w-full mb-2"
+<input
+type="number"
+className="border p-2 w-full mb-2"
 value={editing.targetMargin}
-onChange={e=>setEditing({...editing,targetMargin:e.target.value})}
+onChange={e=>setEditing({...editing, targetMargin:e.target.value})}
 />
 
 <button
 onClick={()=>{
-db.ref("products/"+editing.id).update(editing);
-setEditing(null);
+  db.ref("products/"+editing.id).update(editing);
+  setEditing(null);
 }}
 className="bg-green-600 text-white px-4 py-2 rounded w-full">
 Salvar
