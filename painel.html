@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Gestor PRO Marketplace</title>
+<title>Luary Shop - Gestor Oficial</title>
 
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -14,8 +13,10 @@
 <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;900&display=swap" rel="stylesheet">
+
 <style>
-body { background:#F8FAFC; font-family:Arial }
+body { font-family: 'Poppins', sans-serif; background-color: #F8FAFC; }
 </style>
 </head>
 
@@ -40,122 +41,156 @@ const db = firebase.database();
 // ================= APP =================
 const App = () => {
 
+const [activeTab, setActiveTab] = useState('catalogo');
+const [searchTerm, setSearchTerm] = useState('');
 const [products, setProducts] = useState([]);
 const [marketplaces, setMarketplaces] = useState([]);
-const [editing, setEditing] = useState(null);
+const [editingProduct, setEditingProduct] = useState(null);
 
-// ================= LOGISTICA =================
-const [logistics, setLogistics] = useState({
-  packaging:{ cost:1.5, weight:20 },
-  bathCosts:{ ouro:0.8, prata:0.6, niquel:0.4 }
-});
+const logistics = { 
+  packaging: { cost: 1.5 }, 
+  bathCosts: { ouro: 0.8, prata: 0.6, niquel: 0.4, sem_banho: 0 } 
+};
 
 // ================= LOAD =================
 useEffect(() => {
 
-db.ref("products").on("value", s => {
+db.ref('products').on('value', s => {
   const data = s.val();
-  setProducts(data ? Object.values(data) : []);
+  setProducts(data ? Object.entries(data).map(([id,v])=>({id,...v})) : []);
 });
 
-db.ref("marketplaces").once("value", s => {
-  if (!s.exists()) {
-    db.ref("marketplaces/shopee").set({
-      id:"shopee", name:"Shopee", commission:20, fixedFee:3, tax:0, extraFees:[]
-    });
-    db.ref("marketplaces/ml").set({
-      id:"ml", name:"Mercado Livre", commission:16, fixedFee:6, tax:4, extraFees:[]
-    });
+db.ref('marketplaces').on('value', s => {
+  const data = s.val();
+  if (data) {
+    setMarketplaces(Object.entries(data).map(([id,v])=>({id,...v})));
+  } else {
+    const initialMP = [
+      { id: 'shopee', name: 'Shopee', commission: 20, fixedFee: 3 },
+      { id: 'ml', name: 'Mercado Livre', commission: 16.5, fixedFee: 6 }
+    ];
+    initialMP.forEach(m => db.ref(`marketplaces/${m.id}`).set(m));
   }
 });
 
-db.ref("marketplaces").on("value", s => {
-  const data = s.val();
-  setMarketplaces(data ? Object.values(data) : []);
+// ================= SEED PRODUTOS =================
+db.ref("products").once("value", snap=>{
+if(!snap.exists()){
+
+const seed = [
+{ sku:"CHV-SAOBENTO-01865", name:"Chaveiro São Bento" },
+{ sku:"CHV-FRD-CVALO-00611", name:"Ferradura Cavalo" },
+{ sku:"SKU-CASAL-SERTANEJO-02343", name:"Casal Sertanejo" },
+{ sku:"SKU-NSAPARECIDA-01822", name:"Nossa Senhora Aparecida" },
+{ sku:"SKU-MEDALHA-SAGRADO-01811", name:"Sagrado Coração" },
+{ sku:"SKU-CRUZ-OURO-01777", name:"Cruz Ouro" },
+{ sku:"SKU-ANJO-GUARDA-01999", name:"Anjo da Guarda" },
+{ sku:"SKU-FE-OURO-01888", name:"Fé Ouro" },
+{ sku:"SKU-TERCO-OURO-02001", name:"Terço Ouro" },
+{ sku:"SKU-SAO-JORGE-02002", name:"São Jorge" },
+{ sku:"SKU-SAGRADA-FAMILIA-02003", name:"Sagrada Família" },
+{ sku:"SKU-CRUCIFIXO-02004", name:"Crucifixo" },
+{ sku:"SKU-ESPIRITO-SANTO-02005", name:"Espírito Santo" },
+{ sku:"SKU-CORACAO-JESUS-02006", name:"Coração de Jesus" },
+{ sku:"SKU-MEDALHA-MILAGROSA-02007", name:"Medalha Milagrosa" },
+{ sku:"SKU-ROSARIO-02008", name:"Rosário" },
+{ sku:"SKU-FLOR-OURO", name:"Flor Ouro" },
+{ sku:"SKU-ESTRELA-OURO", name:"Estrela Ouro" },
+{ sku:"SKU-LACO-OURO", name:"Laço Ouro" },
+{ sku:"SKU-CORACAO-OURO", name:"Coração Ouro" }
+];
+
+seed.forEach(p=>{
+const key = db.ref("products").push().key;
+db.ref("products/"+key).set({
+id:key,
+...p,
+baseWeight:15,
+bathType:"ouro",
+strategy:"margem",
+targetMargin:50,
+salePrice:0,
+additionalCosts:[],
+selectedMarketplace:"shopee"
+});
+});
+
+}
 });
 
 },[]);
 
-// ================= CALCULO COMPLETO =================
-const calc = (p) => {
+// ================= CALCULO =================
+const calculateProduct = (prod) => {
 
-if (!p) return {price:0,suggested:0,profit:0,margin:0};
+if(!prod) return {totalProdCost:0, suggestedPrice:0, finalPrice:0, profit:0};
 
-const mp = marketplaces.find(m => m.id === p.selectedMarketplace) || {};
+const mp = marketplaces.find(m => m.id === prod.selectedMarketplace) || { commission:0, fixedFee:0 };
 
-const addWeight = (p.additionalCosts||[]).reduce((a,c)=>a+Number(c.weight||0),0);
-const mimWeight = (p.mimos||[]).reduce((a,m)=>a+Number(m.weight||0),0);
+const bathCost = (Number(prod.baseWeight)||0) * (logistics.bathCosts[prod.bathType]||0);
 
-const totalWeight = (p.baseWeight||0) + logistics.packaging.weight + addWeight + mimWeight;
+const extraCosts = (prod.additionalCosts||[]).reduce((a,c)=>a+Number(c.value||0),0);
 
-let bathCost = p.bathType !== 'sem_banho'
-  ? (p.baseWeight||0) * (logistics.bathCosts[p.bathType]||0)
-  : 0;
+const totalProdCost = bathCost + extraCosts + Number(logistics.packaging.cost);
 
-const extraCosts = (p.additionalCosts||[]).reduce((a,c)=>a+Number(c.value||0),0);
-const mimosCost = (p.mimos||[]).reduce((a,m)=>a+Number(m.value||0),0);
+const divisor = (1 - (Number(mp.commission) + Number(prod.targetMargin||0))/100);
 
-const totalCost = bathCost + extraCosts + mimosCost + logistics.packaging.cost;
+const suggestedPrice = divisor>0 ? (totalProdCost + Number(mp.fixedFee)) / divisor : 0;
 
-const extraPercent = (mp.extraFees||[]).filter(f=>f.type==="percent")
-  .reduce((a,f)=>a+Number(f.value||0),0);
+const finalPrice = prod.strategy === 'margem'
+? suggestedPrice
+: Number(prod.salePrice||0);
 
-const extraFixed = (mp.extraFees||[]).filter(f=>f.type==="fixed")
-  .reduce((a,f)=>a+Number(f.value||0),0);
+const feesVal = (finalPrice * (Number(mp.commission)/100)) + Number(mp.fixedFee);
 
-const percent = (mp.commission||0)+(mp.tax||0)+extraPercent;
-const fixed = (mp.fixedFee||0)+extraFixed;
+const profit = finalPrice - totalProdCost - feesVal;
 
-const divisor = 1 - ((percent + (p.targetMargin||0))/100);
+return { totalProdCost, suggestedPrice, finalPrice, profit };
+};
 
-const suggested = divisor>0 ? (totalCost + fixed)/divisor : 0;
-
-const price = p.strategy==="margem"
-  ? suggested
-  : Number(p.salePrice||0);
-
-const fees = (price * percent/100) + fixed;
-
-const profit = price - totalCost - fees;
-const margin = price>0 ? (profit/price)*100 : 0;
-
-return {price,suggested,profit,margin,totalCost};
+// ================= SAVE =================
+const handleSave = () => {
+db.ref(`products/${editingProduct.id}`).update(editingProduct);
+setEditingProduct(null);
 };
 
 // ================= UI =================
 return (
-<div className="p-6">
+<div className="flex min-h-screen">
 
-<h1 className="text-2xl font-bold mb-6">Gestor PRO</h1>
+<aside className="w-64 bg-slate-900 text-white p-8 fixed h-full">
+<h1 className="text-2xl font-black">LUARY SHOP</h1>
 
-<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+<button onClick={()=>setActiveTab('catalogo')}>Catálogo</button>
+</aside>
 
-{products.map(p=>{
-const r = calc(p);
+<main className="ml-64 p-12 w-full">
 
-return (
-<div key={p.id} className="bg-white p-4 rounded-xl shadow">
-
-<h3 className="font-bold">{p.name}</h3>
-<p className="text-xs text-gray-400">{p.sku}</p>
-
-<div className="mt-3 text-sm">
-<p>Venda: R$ {r.price.toFixed(2)}</p>
-<p>Sugerido: R$ {r.suggested.toFixed(2)}</p>
-<p>Custo: R$ {r.totalCost.toFixed(2)}</p>
-
-<p className={r.profit>0?"text-green-600":"text-red-600"}>
-Lucro: R$ {r.profit.toFixed(2)}
-</p>
-
-<p>Margem: {r.margin.toFixed(1)}%</p>
+<div className="mb-6">
+<input placeholder="Buscar SKU"
+onChange={e=>setSearchTerm(e.target.value)}
+className="p-3 border rounded"/>
 </div>
 
-<button
-onClick={()=>setEditing({...p})}
-className="mt-3 bg-black text-white px-3 py-2 rounded w-full">
-Editar
-</button>
+<div className="grid grid-cols-4 gap-6">
+
+{products
+.filter(p=>p.sku?.toLowerCase().includes(searchTerm.toLowerCase()))
+.map(p=>{
+const r = calculateProduct(p);
+
+return(
+<div key={p.id} className="bg-white p-4 rounded shadow">
+
+<p>{p.name}</p>
+<p>{p.sku}</p>
+
+<p>R$ {r.finalPrice.toFixed(2)}</p>
+<p className={r.profit>0?"text-green-600":"text-red-600"}>
+R$ {r.profit.toFixed(2)}
+</p>
+
+<button onClick={()=>setEditingProduct(p)}>Editar</button>
 
 </div>
 );
@@ -163,49 +198,7 @@ Editar
 
 </div>
 
-{/* MODAL COMPLETO */}
-{editing && (
-<div className="fixed inset-0 bg-black/80 flex items-center justify-center">
-
-<div className="bg-white p-6 rounded-xl w-96">
-
-<h2 className="font-bold mb-4">Editor</h2>
-
-<input className="border p-2 w-full mb-2"
-value={editing.name}
-onChange={e=>setEditing({...editing,name:e.target.value})}
-/>
-
-<input type="number" className="border p-2 w-full mb-2"
-value={editing.baseWeight}
-onChange={e=>setEditing({...editing,baseWeight:e.target.value})}
-/>
-
-<input type="number" className="border p-2 w-full mb-2"
-value={editing.targetMargin}
-onChange={e=>setEditing({...editing,targetMargin:e.target.value})}
-/>
-
-<select className="border p-2 w-full mb-2"
-value={editing.selectedMarketplace}
-onChange={e=>setEditing({...editing,selectedMarketplace:e.target.value})}>
-{marketplaces.map(m=>(
-<option key={m.id} value={m.id}>{m.name}</option>
-))}
-</select>
-
-<button
-onClick={()=>{
-db.ref("products/"+editing.id).update(editing);
-setEditing(null);
-}}
-className="bg-green-600 text-white px-4 py-2 rounded w-full">
-Salvar
-</button>
-
-</div>
-</div>
-)}
+</main>
 
 </div>
 );
