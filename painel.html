@@ -11,7 +11,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;900&display=swap" rel="stylesheet">
 
     <style>
@@ -25,18 +25,24 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useMemo } = React;
 
         const firebaseConfig = {
             apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
             databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
         };
+        
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        // Componente de Ícone Corrigido para CDN
         const Icon = ({ name, size = 18, className = "" }) => {
-            useEffect(() => { lucide.createIcons(); }, [name]);
-            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [name]);
+            return <i data-lucide={name} className={className} style={{ width: size, height: size, display: 'inline-block' }}></i>;
         };
 
         const App = () => {
@@ -59,15 +65,15 @@
                 if(!prod) return { totalProdCost: 0, finalPrice: 0, profit: 0, suggestedPrice: 0, totalWeight: 0 };
                 const mp = marketplaces.find(m => m.id === prod.selectedMarketplace) || { commission: 20, fixedFee: 3, extraFees: [] };
                 
-                // LÓGICA DE SOMATÓRIA (CUSTOS E PESOS EXTRAS)
                 const extraCostsSum = (prod.additionalCosts || []).reduce((acc, c) => acc + Number(c.value || 0), 0);
                 const extraWeightsSum = (prod.additionalCosts || []).reduce((acc, c) => acc + Number(c.weight || 0), 0);
                 const totalWeight = Number(prod.baseWeight || 0) + Number(logistics.packaging.weight || 0) + extraWeightsSum;
-                const bathVal = (Number(prod.baseWeight) || 0) * (Number(logistics.bathCosts[prod.bathType]) || 0);
+                
+                const bathRate = Number(logistics.bathCosts[prod.bathType]) || 0;
+                const bathVal = (Number(prod.baseWeight) || 0) * bathRate;
                 
                 const totalProdCost = bathVal + extraCostsSum + Number(logistics.packaging.cost);
                 
-                // LÓGICA DE TAXAS DO CANAL (FIXO VS PERCENTUAL)
                 const fixedFeesSum = Number(mp.fixedFee || 0) + (mp.extraFees || []).reduce((acc, f) => f.type === 'fixo' ? acc + Number(f.value || 0) : acc, 0);
                 const percentFeesSum = Number(mp.commission || 0) + (mp.extraFees || []).reduce((acc, f) => f.type === 'percent' ? acc + Number(f.value || 0) : acc, 0);
                 
@@ -97,7 +103,7 @@
 
                     <main className="ml-20 lg:ml-64 p-8 w-full max-w-7xl mx-auto">
                         {activeTab === 'catalogo' && (
-                            <div className="space-y-8 animate-in fade-in">
+                            <div className="space-y-8">
                                 <header className="flex justify-between items-center">
                                     <h2 className="text-3xl font-black text-slate-900 italic uppercase tracking-tighter">Produtos</h2>
                                     <button onClick={() => {
@@ -127,7 +133,7 @@
                         )}
 
                         {activeTab === 'marketplaces' && (
-                             <div className="animate-in slide-in-from-bottom-4 space-y-8">
+                             <div className="space-y-8">
                                 <h2 className="text-3xl font-black italic uppercase">Canais de Venda</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     {marketplaces.map(mp => (
@@ -141,17 +147,6 @@
                                                     <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2">Comissão (%)</label><input type="number" className="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none" value={mp.commission} onChange={e => db.ref(`marketplaces/${mp.id}`).update({commission: e.target.value})} /></div>
                                                     <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2">Taxa Fixa (R$)</label><input type="number" className="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none" value={mp.fixedFee} onChange={e => db.ref(`marketplaces/${mp.id}`).update({fixedFee: e.target.value})} /></div>
                                                 </div>
-                                                <div className="pt-4 border-t border-slate-100">
-                                                    <div className="flex justify-between items-center mb-4"><span className="text-[10px] font-black uppercase text-slate-400">Taxas Adicionais</span><button onClick={() => db.ref(`marketplaces/${mp.id}`).update({ extraFees: [...(mp.extraFees || []), { label: 'Nova Taxa', value: 0, type: 'fixo' }] })} className="text-[9px] font-black bg-slate-900 text-white px-3 py-1.5 rounded-lg">+ ADD</button></div>
-                                                    {(mp.extraFees || []).map((fee, idx) => (
-                                                        <div key={idx} className="flex gap-2 mb-2 bg-slate-50 p-2 rounded-xl items-center">
-                                                            <input className="flex-[2] bg-white p-2 rounded-lg text-xs font-bold" value={fee.label} onChange={e => { const fs = [...mp.extraFees]; fs[idx].label = e.target.value; db.ref(`marketplaces/${mp.id}`).update({extraFees: fs}); }} />
-                                                            <input type="number" className="w-16 bg-white p-2 rounded-lg text-xs font-black text-amber-600" value={fee.value} onChange={e => { const fs = [...mp.extraFees]; fs[idx].value = e.target.value; db.ref(`marketplaces/${mp.id}`).update({extraFees: fs}); }} />
-                                                            <select className="flex-1 bg-slate-900 text-white text-[9px] font-black p-2 rounded-lg" value={fee.type} onChange={e => { const fs = [...mp.extraFees]; fs[idx].type = e.target.value; db.ref(`marketplaces/${mp.id}`).update({extraFees: fs}); }}><option value="fixo">R$</option><option value="percent">%</option></select>
-                                                            <button onClick={() => db.ref(`marketplaces/${mp.id}`).update({ extraFees: mp.extraFees.filter((_, i) => i !== idx) })} className="text-rose-500 px-1"><Icon name="trash-2" size={14}/></button>
-                                                        </div>
-                                                    ))}
-                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -160,11 +155,11 @@
                         )}
 
                         {activeTab === 'logistics' && (
-                            <div className="animate-in slide-in-from-right-4 space-y-8">
+                            <div className="space-y-8">
                                 <h2 className="text-3xl font-black italic uppercase">Custos Gerais</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="bg-slate-900 text-white p-10 rounded-[3rem] shadow-xl">
-                                        <h3 className="text-amber-500 font-black mb-6 uppercase tracking-widest text-xs">Preço do Banho (por grama)</h3>
+                                        <h3 className="text-amber-500 font-black mb-6 uppercase tracking-widest text-xs">Preço do Banho (por g)</h3>
                                         {Object.entries(logistics.bathCosts).map(([k, v]) => (
                                             <div key={k} className="flex justify-between items-center bg-white/5 p-4 rounded-2xl mb-2 border border-white/5">
                                                 <span className="capitalize font-black text-slate-300">{k.replace('_',' ')}</span>
@@ -173,7 +168,7 @@
                                         ))}
                                     </div>
                                     <div className="bg-white p-10 rounded-[3rem] border border-slate-100">
-                                        <h3 className="font-black mb-6 uppercase text-slate-400 text-[10px]">Insumos Fixos por Pedido</h3>
+                                        <h3 className="font-black mb-6 uppercase text-slate-400 text-[10px]">Insumos Fixos</h3>
                                         <div className="space-y-4">
                                             <div className="bg-slate-50 p-6 rounded-2xl">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Custo Embalagem (R$)</label>
@@ -190,7 +185,7 @@
                         )}
                     </main>
 
-                    {/* MODAL DE EDIÇÃO COM CAMPOS COMPACTOS E LABELS */}
+                    {/* MODAL DE EDIÇÃO */}
                     {editingProduct && (
                         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/98 backdrop-blur-xl p-4">
                             <div className="bg-slate-900 text-white w-full max-w-5xl rounded-[3.5rem] p-10 shadow-2xl border border-white/5 max-h-[90vh] overflow-y-auto custom-scroll">
@@ -205,49 +200,32 @@
                                             <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 ml-4 uppercase">Imagem URL</label><input className="w-full bg-white/5 p-4 rounded-2xl border border-white/5 outline-none" value={editingProduct.imageUrl} onChange={e => setEditingProduct({...editingProduct, imageUrl: e.target.value})} /></div>
                                             <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 ml-4 uppercase">SKU</label><input className="w-full bg-white/5 p-4 rounded-2xl font-black text-amber-500" value={editingProduct.sku} onChange={e => setEditingProduct({...editingProduct, sku: e.target.value})} /></div>
                                         </div>
-                                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 ml-4 uppercase">Nome do Produto</label><input className="w-full bg-white/5 p-4 rounded-2xl font-bold" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} /></div>
+                                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 ml-4 uppercase">Nome</label><input className="w-full bg-white/5 p-4 rounded-2xl font-bold" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} /></div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 ml-4 uppercase">Peso Peça (g)</label><input type="number" className="w-full bg-white/5 p-4 rounded-2xl font-black" value={editingProduct.baseWeight} onChange={e => setEditingProduct({...editingProduct, baseWeight: e.target.value})} /></div>
                                             <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 ml-4 uppercase">Banho</label><select className="w-full bg-slate-800 p-4 rounded-2xl font-black uppercase text-xs" value={editingProduct.bathType} onChange={e => setEditingProduct({...editingProduct, bathType: e.target.value})}><option value="ouro">Ouro 18k</option><option value="prata">Prata 925</option><option value="niquel">Níquel</option><option value="sem_banho">Sem Banho</option></select></div>
                                         </div>
 
-                                       {/* ITENS ADICIONAIS COM LABELS DE IDENTIFICAÇÃO - AJUSTADO */}
-<div className="bg-white/5 p-6 rounded-[2.5rem] border border-white/5 space-y-4">
-    <div className="flex justify-between items-center mb-2">
-        <h4 className="text-[10px] font-black text-amber-500 uppercase">Custos & Pesos Extras Somados</h4>
-        <button onClick={() => setEditingProduct({...editingProduct, additionalCosts: [...(editingProduct.additionalCosts || []), {item: '', value: 0, weight: 0}]})} className="bg-white/10 px-4 py-2 rounded-xl text-[9px] font-black hover:bg-amber-500 hover:text-slate-900 transition-all">+ ADD</button>
-    </div>
-    
-    {editingProduct.additionalCosts?.length > 0 && (
-        <div className="grid grid-cols-12 gap-2 px-1 opacity-40">
-            <span className="col-span-6 text-[8px] font-black uppercase tracking-tighter">Nome do Item</span>
-            <span className="col-span-2 text-[8px] font-black uppercase tracking-tighter text-center">Preço</span>
-            <span className="col-span-2 text-[8px] font-black uppercase tracking-tighter text-center">Peso</span>
-            <div className="col-span-2"></div>
-        </div>
-    )}
+                                        <div className="bg-white/5 p-6 rounded-[2.5rem] border border-white/5 space-y-4">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <h4 className="text-[10px] font-black text-amber-500 uppercase">Custos & Pesos Extras</h4>
+                                                <button onClick={() => setEditingProduct({...editingProduct, additionalCosts: [...(editingProduct.additionalCosts || []), {item: '', value: 0, weight: 0}]})} className="bg-white/10 px-4 py-2 rounded-xl text-[9px] font-black hover:bg-amber-500 hover:text-slate-900 transition-all">+ ADD</button>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {(editingProduct.additionalCosts || []).map((c, idx) => (
+                                                    <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                                                        <input className="col-span-6 bg-slate-800 p-3 rounded-xl text-xs" placeholder="Item" value={c.item} onChange={e => { const nc = [...editingProduct.additionalCosts]; nc[idx].item = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc}); }} />
+                                                        <input type="number" className="col-span-2 bg-slate-800 p-3 rounded-xl text-xs text-amber-500" placeholder="R$" value={c.value} onChange={e => { const nc = [...editingProduct.additionalCosts]; nc[idx].value = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc}); }} />
+                                                        <input type="number" className="col-span-2 bg-slate-800 p-3 rounded-xl text-xs text-emerald-400" placeholder="g" value={c.weight} onChange={e => { const nc = [...editingProduct.additionalCosts]; nc[idx].weight = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc}); }} />
+                                                        <button className="col-span-2 text-rose-500 flex justify-end" onClick={() => setEditingProduct({...editingProduct, additionalCosts: editingProduct.additionalCosts.filter((_, i) => i !== idx)})}><Icon name="trash-2" size={16}/></button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
 
-    <div className="space-y-2">
-        {(editingProduct.additionalCosts || []).map((c, idx) => (
-            <div key={idx} className="grid grid-cols-12 gap-2 items-center animate-in slide-in-from-left-2">
-                <div className="col-span-6">
-                    <input className="w-full bg-slate-800 p-3 rounded-xl text-xs font-bold border border-transparent focus:border-white/10" placeholder="Ex: Argola" value={c.item} onChange={e => { const nc = [...editingProduct.additionalCosts]; nc[idx].item = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc}); }} />
-                </div>
-                <div className="col-span-2">
-                    <input type="number" className="w-full bg-slate-800 p-3 rounded-xl text-xs font-black text-amber-500 text-center border border-transparent focus:border-amber-500" placeholder="0" value={c.value} onChange={e => { const nc = [...editingProduct.additionalCosts]; nc[idx].value = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc}); }} />
-                </div>
-                <div className="col-span-2">
-                    <input type="number" className="w-full bg-slate-800 p-3 rounded-xl text-xs font-black text-emerald-400 text-center border border-transparent focus:border-emerald-500" placeholder="0" value={c.weight} onChange={e => { const nc = [...editingProduct.additionalCosts]; nc[idx].weight = e.target.value; setEditingProduct({...editingProduct, additionalCosts: nc}); }} />
-                </div>
-                <div className="col-span-2 flex justify-end">
-                    <button onClick={() => setEditingProduct({...editingProduct, additionalCosts: editingProduct.additionalCosts.filter((_, i) => i !== idx)})} className="text-rose-500 p-2 hover:bg-rose-500/10 rounded-lg"><Icon name="trash-2" size={16}/></button>
-                </div>
-            </div>
-        ))}
-    </div>
-</div>
                                     <div className="lg:col-span-5 space-y-6">
-                                        <div className="bg-amber-500 text-slate-900 p-10 rounded-[3rem] shadow-xl">
+                                        <div className="bg-amber-500 text-slate-900 p-10 rounded-[3rem] shadow-xl text-center">
                                             <p className="text-[10px] font-black uppercase opacity-60 mb-1">Sugerido Venda</p>
                                             <p className="text-6xl font-black tracking-tighter">R$ {calculateProduct(editingProduct).suggestedPrice?.toFixed(2)}</p>
                                         </div>
