@@ -11,7 +11,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;900&display=swap" rel="stylesheet">
 
     <style>
@@ -20,6 +20,7 @@
         .custom-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .glass-effect { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
+        .product-image { object-fit: cover; width: 100%; height: 100%; border-radius: 1.5rem; }
     </style>
 </head>
 <body>
@@ -28,10 +29,12 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
+        // Configuração Firebase do seu arquivo original 
         const firebaseConfig = { databaseURL: "https://luary-shop-default-rtdb.firebaseio.com/" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        // Canais de Venda e Taxas 
         const salesChannels = {
             shopee: { name: "Shopee", commission: 0.18, fixedFee: 5.00, tax: 0.04 },
             ml: { name: "M. Livre", commission: 0.14, fixedFee: 5.00, tax: 0.04 },
@@ -42,48 +45,77 @@
             const [products, setProducts] = useState([]);
             const [editingProduct, setEditingProduct] = useState(null);
             const [activeChannel, setActiveChannel] = useState('shopee');
+            const [searchTerm, setSearchTerm] = useState('');
 
             useEffect(() => {
                 const ref = db.ref('products');
                 ref.on('value', (snapshot) => {
                     const data = snapshot.val();
-                    if (data) setProducts(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+                    if (data) {
+                        const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+                        setProducts(list);
+                    }
                 });
-                // Inicializa ícones lucide
-                setTimeout(() => { if(window.lucide) window.lucide.createIcons(); }, 500);
                 return () => ref.off();
+            }, []);
+
+            useEffect(() => {
+                if (window.lucide) window.lucide.createIcons();
             }, [products, editingProduct]);
 
             const calculateProduct = (p) => {
-                const basePrice = parseFloat(p.price) || 0;
+                if (!p) return {};
+                const baseCost = parseFloat(p.price) || 0;
                 const weight = parseFloat(p.weight) || 0;
                 const bathPrice = parseFloat(p.bathPrice) || 0;
-                const margin = (parseFloat(p.margin) || 35) / 100;
                 
-                const totalCost = basePrice + (weight * bathPrice);
+                // Lógica de Banho integrada: Custo Base + (Peso * Valor do Banho) 
+                const totalCost = baseCost + (weight * bathPrice);
+                
+                const margin = (parseFloat(p.margin) || 35) / 100;
                 const channel = salesChannels[activeChannel];
                 
                 const divisor = 1 - (channel.commission + margin + channel.tax);
                 const suggested = divisor > 0 ? (totalCost + channel.fixedFee) / divisor : 0;
                 const profit = suggested > 0 ? suggested - totalCost - (suggested * channel.commission) - channel.fixedFee - (suggested * channel.tax) : 0;
 
-                return { suggested, profit, totalCost };
+                return { suggested, profit, totalCost, weight };
             };
 
+            const filteredProducts = products.filter(p => 
+                p.name?.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
             return (
-                <div className="max-w-md mx-auto min-h-screen pb-24 px-4">
-                    <header className="py-10 flex justify-between items-center">
-                        <div>
-                            <h1 className="text-4xl font-black tracking-tighter text-slate-900 leading-none">LUARY<span className="text-amber-500">.</span></h1>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic mt-1">Gestão de Peças e Banho</p>
+                <div className="max-w-md mx-auto min-h-screen pb-24 relative">
+                    {/* Header Original  */}
+                    <header className="p-8 pt-12">
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h1 className="text-4xl font-black tracking-tighter text-slate-900">LUARY<span className="text-amber-500">.</span></h1>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Gestão e Catálogo</p>
+                            </div>
+                            <button onClick={() => setEditingProduct({ name: '', price: '', weight: '', margin: '35', stock: '0', bathPrice: '0', image: '' })} 
+                                    className="bg-slate-900 text-white w-14 h-14 rounded-2xl shadow-xl flex items-center justify-center transition-transform active:scale-90">
+                                <i data-lucide="plus" className="w-8 h-8"></i>
+                            </button>
                         </div>
-                        <button onClick={() => setEditingProduct({ name: '', price: '', weight: '', margin: '35', stock: '0', bathPrice: '0' })} 
-                                className="bg-slate-900 text-white w-14 h-14 rounded-2xl shadow-2xl flex items-center justify-center transition-transform active:scale-90">
-                            <i data-lucide="plus" className="w-8 h-8"></i>
-                        </button>
+
+                        {/* Barra de Busca  */}
+                        <div className="relative group">
+                            <i data-lucide="search" className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-amber-500 transition-colors"></i>
+                            <input 
+                                type="text" 
+                                placeholder="Buscar no estoque..." 
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full bg-white p-5 pl-14 rounded-[2rem] shadow-sm border border-slate-50 outline-none focus:ring-2 ring-amber-500/20 transition-all font-medium"
+                            />
+                        </div>
                     </header>
 
-                    <div className="flex gap-2 overflow-x-auto no-scrollbar mb-8 pb-2">
+                    {/* Seleção de Canais  */}
+                    <div className="px-8 flex gap-3 overflow-x-auto no-scrollbar mb-8">
                         {Object.keys(salesChannels).map(key => (
                             <button key={key} onClick={() => setActiveChannel(key)}
                                 className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap transition-all ${activeChannel === key ? 'bg-amber-500 text-white shadow-lg translate-y-[-2px]' : 'bg-white text-slate-400 border border-slate-100'}`}>
@@ -92,29 +124,38 @@
                         ))}
                     </div>
 
-                    <div className="space-y-4">
-                        {products.map(p => {
+                    {/* Grid de Produtos com Fotos  */}
+                    <div className="px-8 space-y-6">
+                        {filteredProducts.map(p => {
                             const res = calculateProduct(p);
                             return (
-                                <div key={p.id} onClick={() => setEditingProduct(p)} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 cursor-pointer active:scale-[0.98] transition-all">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h3 className="font-black text-slate-800 text-lg leading-tight">{p.name || 'Nova Peça'}</h3>
-                                            <div className="flex gap-2 mt-1">
-                                                <span className="text-[9px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase">{p.weight}g</span>
-                                                <span className="text-[9px] font-bold bg-amber-50 px-2 py-1 rounded-md text-amber-600 uppercase">Estoque: {p.stock}</span>
+                                <div key={p.id} onClick={() => setEditingProduct(p)} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-50 overflow-hidden cursor-pointer group active:scale-[0.98] transition-all">
+                                    {p.image && (
+                                        <div className="h-48 w-full relative overflow-hidden">
+                                            <img src={p.image} alt={p.name} className="product-image transition-transform duration-500 group-hover:scale-110" />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+                                            <div className="absolute bottom-4 left-6">
+                                                <span className="bg-amber-500 text-white text-[9px] font-black px-3 py-1 rounded-full uppercase italic shadow-lg">Estoque: {p.stock}</span>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Sugerido</p>
-                                            <p className="text-2xl font-black text-slate-900 italic">R$ {res.suggested.toFixed(2)}</p>
+                                    )}
+                                    <div className="p-6">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="max-w-[60%]">
+                                                <h3 className="text-lg font-black text-slate-800 leading-tight">{p.name || 'Sem nome'}</h3>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{p.weight}g | Banho: R$ {p.bathPrice}/g</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-[8px] font-black text-slate-400 uppercase block tracking-tighter">Sugerido</span>
+                                                <span className="text-xl font-black text-slate-900 italic">R$ {res.suggested?.toFixed(2)}</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="mt-4 pt-4 border-t border-slate-50 flex justify-between items-center">
-                                        <span className="text-[10px] font-black text-slate-400 italic uppercase">Banho: R$ {p.bathPrice}/g</span>
-                                        <div className="flex items-center gap-1 text-emerald-500">
-                                            <i data-lucide="trending-up" className="w-3 h-3"></i>
-                                            <span className="text-[11px] font-black uppercase">Lucro: R$ {res.profit.toFixed(2)}</span>
+                                        <div className="flex justify-between items-center pt-4 border-t border-slate-50">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                                <span className="text-[10px] font-black text-emerald-500 uppercase italic">Lucro: R$ {res.profit?.toFixed(2)}</span>
+                                            </div>
+                                            <i data-lucide="chevron-right" className="w-4 h-4 text-slate-300"></i>
                                         </div>
                                     </div>
                                 </div>
@@ -122,57 +163,69 @@
                         })}
                     </div>
 
+                    {/* Editor Lateral/Modal Completo  */}
                     {editingProduct && (
-                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-end transition-all">
-                            <div className="bg-slate-50 w-full max-h-[92vh] rounded-t-[3.5rem] p-8 overflow-y-auto custom-scroll shadow-2xl border-t-4 border-amber-500">
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-end">
+                            <div className="bg-slate-50 w-full max-h-[95vh] rounded-t-[3.5rem] p-8 overflow-y-auto custom-scroll shadow-2xl border-t-4 border-amber-500">
                                 <div className="max-w-md mx-auto space-y-6">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <h2 className="text-2xl font-black italic text-slate-900 tracking-tighter">Editor Detalhado</h2>
-                                        <button onClick={() => setEditingProduct(null)} className="bg-white text-slate-400 p-3 rounded-full shadow-sm hover:text-rose-500"><i data-lucide="x" className="w-5 h-5"></i></button>
+                                    <div className="flex justify-between items-center">
+                                        <h2 className="text-2xl font-black italic text-slate-900">Editor Luary</h2>
+                                        <button onClick={() => setEditingProduct(null)} className="bg-white p-3 rounded-full shadow-sm text-slate-400 hover:text-rose-500 transition-colors"><i data-lucide="x" className="w-6 h-6"></i></button>
                                     </div>
 
                                     <div className="space-y-4">
+                                        {/* Campo de Imagem Restaurado  */}
                                         <div className="space-y-1">
-                                            <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest italic font-bold">Nome da Peça</label>
-                                            <input value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full bg-white p-5 rounded-3xl font-bold shadow-sm outline-none border-2 border-transparent focus:border-amber-400 transition-all" placeholder="Ex: Chaveiro Cavalo" />
+                                            <label className="text-[10px] font-black uppercase text-slate-400 ml-4 italic">Link da Foto (URL)</label>
+                                            <div className="relative">
+                                                <i data-lucide="image" className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300"></i>
+                                                <input value={editingProduct.image || ''} onChange={e => setEditingProduct({...editingProduct, image: e.target.value})} className="w-full bg-white p-5 pl-14 rounded-3xl font-bold shadow-sm outline-none border-2 border-transparent focus:border-amber-400 transition-all" placeholder="https://exemplo.com/foto.jpg" />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black uppercase text-slate-400 ml-4 italic">Nome do Produto</label>
+                                            <input value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full bg-white p-5 rounded-3xl font-bold shadow-sm outline-none border-2 border-transparent focus:border-amber-400 transition-all" />
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-1">
-                                                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 italic font-bold">Preço Peça (R$)</label>
-                                                <input type="number" value={editingProduct.price} onChange={e => setEditingProduct({...editingProduct, price: e.target.value})} className="w-full bg-white p-5 rounded-3xl font-bold shadow-sm outline-none border-2 border-transparent focus:border-slate-200" />
+                                                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 italic font-bold tracking-widest">Custo Peça (R$)</label>
+                                                <input type="number" value={editingProduct.price} onChange={e => setEditingProduct({...editingProduct, price: e.target.value})} className="w-full bg-white p-5 rounded-3xl font-bold shadow-sm outline-none" />
                                             </div>
                                             <div className="space-y-1">
-                                                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 italic font-bold">Peso (g)</label>
-                                                <input type="number" value={editingProduct.weight} onChange={e => setEditingProduct({...editingProduct, weight: e.target.value})} className="w-full bg-white p-5 rounded-3xl font-bold shadow-sm outline-none border-2 border-transparent focus:border-slate-200" />
+                                                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 italic font-bold tracking-widest">Peso (g)</label>
+                                                <input type="number" value={editingProduct.weight} onChange={e => setEditingProduct({...editingProduct, weight: e.target.value})} className="w-full bg-white p-5 rounded-3xl font-bold shadow-sm outline-none" />
                                             </div>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-1">
                                                 <label className="text-[10px] font-black uppercase text-amber-600 ml-4 italic font-bold tracking-widest">Valor Banho (g)</label>
-                                                <input type="number" value={editingProduct.bathPrice} onChange={e => setEditingProduct({...editingProduct, bathPrice: e.target.value})} className="w-full bg-amber-50 p-5 rounded-3xl font-black shadow-inner outline-none border-2 border-amber-200" />
+                                                <input type="number" value={editingProduct.bathPrice} onChange={e => setEditingProduct({...editingProduct, bathPrice: e.target.value})} className="w-full bg-amber-50 p-5 rounded-3xl font-bold shadow-sm outline-none border-2 border-amber-200" />
                                             </div>
                                             <div className="space-y-1">
-                                                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 italic font-bold">Margem (%)</label>
+                                                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 italic font-bold tracking-widest">Margem (%)</label>
                                                 <input type="number" value={editingProduct.margin} onChange={e => setEditingProduct({...editingProduct, margin: e.target.value})} className="w-full bg-white p-5 rounded-3xl font-bold shadow-sm outline-none" />
                                             </div>
                                         </div>
 
                                         <div className="space-y-1">
-                                            <label className="text-[10px] font-black uppercase text-slate-400 ml-4 italic font-bold">Estoque</label>
+                                            <label className="text-[10px] font-black uppercase text-slate-400 ml-4 italic font-bold tracking-widest">Estoque Atual</label>
                                             <input type="number" value={editingProduct.stock} onChange={e => setEditingProduct({...editingProduct, stock: e.target.value})} className="w-full bg-white p-5 rounded-3xl font-bold shadow-sm outline-none" />
                                         </div>
 
-                                        <div className="bg-slate-900 p-8 rounded-[3rem] text-white relative overflow-hidden shadow-2xl">
+                                        {/* Painel de Resultados Visual  */}
+                                        <div className="bg-slate-900 p-8 rounded-[3rem] text-white shadow-2xl relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full -mr-16 -mt-16"></div>
                                             <div className="flex justify-between items-center relative z-10">
                                                 <div>
-                                                    <span className="text-[9px] font-black uppercase text-slate-500 block italic">Venda Sugerida</span>
-                                                    <span className="text-4xl font-black italic text-amber-500">R$ {calculateProduct(editingProduct).suggested.toFixed(2)}</span>
+                                                    <span className="text-[9px] font-black uppercase text-slate-500 block italic mb-1 tracking-widest">Preço Sugerido</span>
+                                                    <span className="text-4xl font-black italic text-amber-500">R$ {calculateProduct(editingProduct).suggested?.toFixed(2)}</span>
                                                 </div>
                                                 <div className="text-right">
-                                                    <span className="text-[9px] font-black uppercase text-slate-500 block">Lucro Limpo</span>
-                                                    <span className="text-xl font-black text-emerald-400">R$ {calculateProduct(editingProduct).profit.toFixed(2)}</span>
+                                                    <span className="text-[9px] font-black uppercase text-slate-500 block italic mb-1 tracking-widest">Lucro Real</span>
+                                                    <span className="text-xl font-black text-emerald-400">R$ {calculateProduct(editingProduct).profit?.toFixed(2)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -181,13 +234,10 @@
                                             const id = editingProduct.id || db.ref('products').push().key;
                                             db.ref(`products/${id}`).set({...editingProduct, id});
                                             setEditingProduct(null);
-                                        }} className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black uppercase italic shadow-xl hover:bg-amber-500 transition-all active:scale-95">
-                                            Salvar Alterações
-                                        </button>
+                                        }} className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black uppercase shadow-xl hover:bg-amber-500 transition-all active:scale-95 italic">Gravar Alterações</button>
                                         
                                         {editingProduct.id && (
-                                            <button onClick={() => confirm('Apagar definitivamente?') && (db.ref(`products/${editingProduct.id}`).remove(), setEditingProduct(null))}
-                                                    className="w-full text-rose-500 font-black text-[9px] uppercase tracking-widest opacity-40 hover:opacity-100 transition-all mt-2">Remover do Catálogo</button>
+                                            <button onClick={() => confirm('Remover definitivamente?') && (db.ref(`products/${editingProduct.id}`).remove(), setEditingProduct(null))} className="w-full text-rose-500 font-black text-[9px] uppercase tracking-widest opacity-40 hover:opacity-100 transition-all">Excluir Permanente</button>
                                         )}
                                     </div>
                                 </div>
