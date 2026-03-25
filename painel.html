@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luary Shop | Sistema Anti-Erro</title>
+    <title>Luary Shop | Sistema Profissional</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -13,18 +13,33 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Poppins', sans-serif; background-color: #020617; color: #f8fafc; overflow-x: hidden; }
-        .glass-card { background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        input, select, textarea { background: #0f172a !important; color: white !important; border: 1px solid #334155 !important; border-radius: 12px !important; outline: none; }
-        .custom-scroll::-webkit-scrollbar { width: 5px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        body { font-family: 'Poppins', sans-serif; background-color: #020617; color: #f8fafc; }
+        .glass-card { background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        input, select, textarea { 
+            background: #0f172a !important; 
+            color: #fff !important; 
+            border: 1px solid #334155 !important; 
+            border-radius: 12px !important; 
+            padding: 12px !important;
+            width: 100%;
+        }
+        label { 
+            display: block; 
+            font-size: 10px; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            color: #94a3b8; 
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+        .tab-active { background: #fbbf24; color: #0f172a; font-weight: bold; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect } = React;
 
         const firebaseConfig = {
             apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
@@ -37,106 +52,73 @@
             const [activeTab, setActiveTab] = useState('catalogo');
             const [products, setProducts] = useState([]);
             const [marketplaces, setMarketplaces] = useState([]);
-            const [logistics, setLogistics] = useState(null); // Começa nulo para controle de carregamento
+            const [logistics, setLogistics] = useState({
+                packaging: { cost: 0, weight: 0 },
+                bathCosts: { ouro: 0, prata: 0, niquel: 0 }
+            });
             const [editingProduct, setEditingProduct] = useState(null);
 
             useEffect(() => {
                 db.ref('products').on('value', s => setProducts(s.val() ? Object.values(s.val()) : []));
                 db.ref('marketplaces').on('value', s => s.val() ? setMarketplaces(Object.values(s.val())) : setMarketplaces([{id:'shopee', name:'Shopee', commission:20, fixedFee:3}]));
-                db.ref('logistics').on('value', s => setLogistics(s.val() || { packaging: {cost:0, weight:0}, bathCosts: {ouro:0, prata:0, niquel:0}, globalExtras: [] }));
+                db.ref('logistics').on('value', s => s.val() && setLogistics(s.val()));
             }, []);
 
-            // --- LÓGICA DE CÁLCULO COM PROTEÇÃO TOTAL ---
             const calculate = (p) => {
-                if (!p || !logistics) return { totalProdCost: 0, totalWeight: 0, finalPrice: 0, profit: 0, suggested: 0 };
+                if (!p) return { totalProdCost: 0, totalWeight: 0, finalPrice: 0, profit: 0, suggested: 0 };
+                const mp = marketplaces.find(m => m.id === p.selectedMarketplace) || marketplaces[0] || {commission: 20, fixedFee: 3};
                 
-                const mp = marketplaces.find(m => m.id === p.selectedMarketplace) || marketplaces[0] || {commission: 0, fixedFee: 0};
+                const bathUnit = p.bathType === 'sem_banho' ? 0 : Number(logistics.bathCosts[p.bathType] || 0);
+                const bathCost = Number(p.baseWeight || 0) * bathUnit;
                 
-                // Custo Banho (Seguro)
-                const bathPricePerGram = p.bathType === 'sem_banho' ? 0 : Number(logistics?.bathCosts?.[p.bathType] || 0);
-                const totalBathCost = Number(p.baseWeight || 0) * bathPricePerGram;
-
-                // Componentes e Mimos
-                const compValue = (p.components || []).reduce((a, b) => a + Number(b.value || 0), 0);
+                const compCost = (p.components || []).reduce((a, b) => a + Number(b.value || 0), 0);
                 const compWeight = (p.components || []).reduce((a, b) => a + Number(b.weight || 0), 0);
-
-                // Global (Caixa e Extras)
-                const packCost = Number(logistics?.packaging?.cost || 0);
-                const packWeight = Number(logistics?.packaging?.weight || 0);
-                const extrasValue = (logistics?.globalExtras || []).reduce((a, b) => a + Number(b.value || 0), 0);
-                const extrasWeight = (logistics?.globalExtras || []).reduce((a, b) => a + Number(b.weight || 0), 0);
-
-                const totalProdCost = totalBathCost + compValue + packCost + extrasValue;
-                const totalWeight = Number(p.baseWeight || 0) + compWeight + packWeight + extrasWeight;
+                
+                const totalProdCost = bathCost + compCost + Number(logistics.packaging.cost || 0);
+                const totalWeight = Number(p.baseWeight || 0) + compWeight + Number(logistics.packaging.weight || 0);
 
                 const comm = Number(mp.commission || 0) / 100;
                 const fee = Number(mp.fixedFee || 0);
                 const margin = Number(p.targetMargin || 0) / 100;
 
-                const divisor = (1 - comm - margin);
-                const suggested = divisor > 0 ? (totalProdCost + fee) / divisor : 0;
+                const suggested = (totalProdCost + fee) / (1 - comm - margin);
                 const finalPrice = p.strategy === 'margem' ? suggested : Number(p.salePrice || 0);
                 const profit = finalPrice - totalProdCost - (finalPrice * comm) - fee;
 
                 return { totalProdCost, totalWeight, finalPrice, profit, suggested };
             };
 
-            const duplicateProduct = (p) => {
-                const newId = Date.now().toString();
-                const newP = { ...p, id: newId, name: p.name + " (Cópia)", sku: p.sku + "-copy" };
-                db.ref(`products/${newId}`).set(newP);
-            };
-
             useEffect(() => { if(window.lucide) lucide.createIcons(); });
-
-            // Se ainda não carregou a logística, mostra um carregamento simples para evitar crash
-            if (!logistics) return <div className="h-screen w-screen flex items-center justify-center bg-slate-950 text-amber-500 font-black italic animate-pulse text-2xl">CARREGANDO SISTEMA LUARY...</div>;
 
             return (
                 <div className="flex min-h-screen">
-                    <aside className="w-64 border-r border-white/5 bg-slate-900/50 p-6 flex flex-col gap-8 sticky top-0 h-screen">
-                        <div className="text-amber-500 font-black text-2xl italic tracking-tighter">LUARY SHOP</div>
-                        <nav className="space-y-2 flex-1">
-                            <button onClick={() => setActiveTab('catalogo')} className={`w-full p-4 rounded-xl flex items-center gap-3 ${activeTab === 'catalogo' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400'}`}><i data-lucide="layout-grid"></i>Estoque</button>
-                            <button onClick={() => setActiveTab('canais')} className={`w-full p-4 rounded-xl flex items-center gap-3 ${activeTab === 'canais' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400'}`}><i data-lucide="shopping-bag"></i>Canais</button>
-                            <button onClick={() => setActiveTab('logistica')} className={`w-full p-4 rounded-xl flex items-center gap-3 ${activeTab === 'logistica' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400'}`}><i data-lucide="truck"></i>Logística</button>
-                        </nav>
+                    <aside className="w-64 border-r border-white/5 bg-slate-900/50 p-6 flex flex-col gap-4 sticky top-0 h-screen">
+                        <div className="text-amber-500 font-black text-2xl mb-10 italic">LUARY SHOP</div>
+                        <button onClick={() => setActiveTab('catalogo')} className={`flex items-center gap-3 p-4 rounded-xl ${activeTab === 'catalogo' ? 'tab-active' : 'text-slate-400'}`}><i data-lucide="package"></i> Catálogo</button>
+                        <button onClick={() => setActiveTab('canais')} className={`flex items-center gap-3 p-4 rounded-xl ${activeTab === 'canais' ? 'tab-active' : 'text-slate-400'}`}><i data-lucide="shopping-bag"></i> Canais</button>
+                        <button onClick={() => setActiveTab('logistica')} className={`flex items-center gap-3 p-4 rounded-xl ${activeTab === 'logistica' ? 'tab-active' : 'text-slate-400'}`}><i data-lucide="truck"></i> Logística</button>
                     </aside>
 
                     <main className="flex-1 p-10">
                         {activeTab === 'catalogo' && (
-                            <div className="space-y-8">
-                                <div className="flex justify-between items-center">
-                                    <h1 className="text-3xl font-black italic uppercase">Catálogo Geral</h1>
-                                    <button onClick={() => setEditingProduct({ id: Date.now().toString(), sku: '', name: '', baseWeight: 0, bathType: 'ouro', components: [], strategy: 'margem', targetMargin: 40, selectedMarketplace: marketplaces[0]?.id })} className="bg-amber-500 text-slate-950 px-8 py-4 rounded-2xl font-black">+ NOVO SKU</button>
+                            <div>
+                                <div className="flex justify-between items-center mb-8">
+                                    <h1 className="text-3xl font-black italic uppercase">Gestão de Estoque</h1>
+                                    <button onClick={() => setEditingProduct({ id: Date.now().toString(), sku: '', name: '', baseWeight: 0, bathType: 'ouro', components: [], strategy: 'margem', targetMargin: 40, selectedMarketplace: marketplaces[0]?.id })} className="bg-amber-500 text-slate-950 px-8 py-4 rounded-2xl font-black">+ NOVO ITEM</button>
                                 </div>
-
                                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                                     {products.map(p => {
                                         const res = calculate(p);
                                         return (
-                                            <div key={p.id} className="glass-card rounded-[2.5rem] p-6 border border-white/5 hover:border-amber-500/40 transition-all group">
+                                            <div key={p.id} className="glass-card rounded-[2rem] p-6 hover:border-amber-500/50 transition-all group">
                                                 <div className="flex justify-between mb-4">
-                                                    <div className="h-20 w-20 bg-slate-800 rounded-2xl overflow-hidden border border-white/10">
-                                                        {p.image ? <img src={p.image} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full opacity-10"><i data-lucide="image"></i></div>}
-                                                    </div>
-                                                    <div className="flex flex-col gap-2">
-                                                        <button onClick={() => duplicateProduct(p)} className="p-2 bg-white/5 rounded-lg hover:bg-amber-500 hover:text-slate-950 transition-all"><i data-lucide="copy" className="size-4"></i></button>
-                                                        <button onClick={() => setEditingProduct(p)} className="p-2 bg-white/5 rounded-lg hover:bg-amber-500 hover:text-slate-950 transition-all"><i data-lucide="edit-3" className="size-4"></i></button>
-                                                    </div>
+                                                    <span className="text-[10px] font-black text-amber-500">{p.sku || 'SEM SKU'}</span>
+                                                    <button onClick={() => setEditingProduct(p)} className="text-slate-400 hover:text-white"><i data-lucide="edit-3" className="size-4"></i></button>
                                                 </div>
-                                                <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">{p.sku || 'N/A'}</span>
-                                                <h3 className="font-bold text-lg mb-4 line-clamp-1">{p.name}</h3>
-                                                
-                                                <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4 mb-4">
-                                                    <div><p className="text-[9px] text-slate-500 font-bold uppercase">Preço</p><p className="text-xl font-black">R$ {res.finalPrice.toFixed(2)}</p></div>
-                                                    <div className="text-right"><p className="text-[9px] text-slate-500 font-bold uppercase">Lucro</p><p className="text-xl font-black text-emerald-400">R$ {res.profit.toFixed(2)}</p></div>
-                                                </div>
-
-                                                <div className="flex gap-1 overflow-x-auto pb-2 custom-scroll">
-                                                    {marketplaces.map(m => (
-                                                        <button key={m.id} onClick={() => db.ref(`products/${p.id}`).update({selectedMarketplace: m.id})} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase whitespace-nowrap ${p.selectedMarketplace === m.id ? 'bg-amber-500 text-slate-950' : 'bg-white/5 text-slate-500'}`}>{m.name}</button>
-                                                    ))}
+                                                <h3 className="font-bold text-lg mb-6">{p.name}</h3>
+                                                <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4">
+                                                    <div><label>Venda</label><p className="text-xl font-black text-white">R$ {res.finalPrice.toFixed(2)}</p></div>
+                                                    <div><label>Lucro</label><p className="text-xl font-black text-emerald-400">R$ {res.profit.toFixed(2)}</p></div>
                                                 </div>
                                             </div>
                                         );
@@ -146,107 +128,82 @@
                         )}
 
                         {activeTab === 'logistica' && (
-                            <div className="max-w-3xl space-y-8">
-                                <h2 className="text-2xl font-black italic">Configurações de Produção</h2>
-                                <div className="glass-card p-8 rounded-[2.5rem] space-y-6">
-                                    <h3 className="text-amber-500 font-bold flex items-center gap-2 uppercase text-xs"><i data-lucide="droplet" className="size-4"></i> Preços do Banho (por grama)</h3>
+                            <div className="max-w-2xl space-y-8">
+                                <h2 className="text-2xl font-black italic mb-6">Custos de Operação</h2>
+                                <div className="glass-card p-8 rounded-[2rem] space-y-8">
                                     <div className="grid grid-cols-3 gap-6">
-                                        {['ouro', 'prata', 'niquel'].map(type => (
-                                            <div key={type} className="p-4 bg-black/20 rounded-2xl">
-                                                <label className="text-[10px] font-black uppercase text-slate-500">{type}</label>
-                                                <input type="number" step="0.01" value={logistics.bathCosts[type]} onChange={e => {
-                                                    const nl = {...logistics, bathCosts: {...logistics.bathCosts, [type]: e.target.value}};
-                                                    setLogistics(nl); db.ref('logistics').set(nl);
-                                                }} className="w-full bg-transparent border-none p-0 text-xl font-black" />
-                                            </div>
-                                        ))}
+                                        <div className="col-span-3 text-amber-500 font-bold text-xs uppercase tracking-widest border-b border-white/5 pb-2">Preço do Banho (por grama)</div>
+                                        <div><label>Ouro (R$)</label><input type="number" step="0.01" value={logistics.bathCosts.ouro} onChange={e => {const nl = {...logistics, bathCosts: {...logistics.bathCosts, ouro: e.target.value}}; setLogistics(nl); db.ref('logistics').set(nl)}} /></div>
+                                        <div><label>Prata (R$)</label><input type="number" step="0.01" value={logistics.bathCosts.prata} onChange={e => {const nl = {...logistics, bathCosts: {...logistics.bathCosts, prata: e.target.value}}; setLogistics(nl); db.ref('logistics').set(nl)}} /></div>
+                                        <div><label>Níquel (R$)</label><input type="number" step="0.01" value={logistics.bathCosts.niquel} onChange={e => {const nl = {...logistics, bathCosts: {...logistics.bathCosts, niquel: e.target.value}}; setLogistics(nl); db.ref('logistics').set(nl)}} /></div>
                                     </div>
-                                </div>
-
-                                <div className="glass-card p-8 rounded-[2.5rem] grid grid-cols-2 gap-8">
-                                    <div className="col-span-2 text-amber-500 font-bold uppercase text-xs flex items-center gap-2"><i data-lucide="package" className="size-4"></i> Caixa de Envio</div>
-                                    <div><label className="text-[10px] font-black uppercase text-slate-500">Custo R$</label><input type="number" step="0.01" value={logistics.packaging.cost} onChange={e => {const nl = {...logistics, packaging: {...logistics.packaging, cost: e.target.value}}; setLogistics(nl); db.ref('logistics').set(nl)}} className="w-full p-4 mt-1" /></div>
-                                    <div><label className="text-[10px] font-black uppercase text-slate-500">Peso g</label><input type="number" value={logistics.packaging.weight} onChange={e => {const nl = {...logistics, packaging: {...logistics.packaging, weight: e.target.value}}; setLogistics(nl); db.ref('logistics').set(nl)}} className="w-full p-4 mt-1" /></div>
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'canais' && (
-                            <div className="max-w-4xl space-y-6">
-                                <div className="flex justify-between items-center"><h2 className="text-2xl font-black italic">Marketplaces</h2><button onClick={() => {const id = Date.now().toString(); const n = [...marketplaces, {id, name: 'Novo', commission: 0, fixedFee: 0}]; setMarketplaces(n); db.ref('marketplaces').set(n)}} className="text-amber-500 font-bold text-sm">+ Adicionar Canal</button></div>
-                                <div className="space-y-4">
-                                    {marketplaces.map((m, i) => (
-                                        <div key={m.id} className="glass-card p-6 rounded-2xl grid grid-cols-4 gap-4 items-end">
-                                            <input value={m.name} onChange={e => {const n = [...marketplaces]; n[i].name = e.target.value; setMarketplaces(n); db.ref('marketplaces').set(n)}} className="p-3 text-xs font-bold" />
-                                            <input type="number" value={m.commission} onChange={e => {const n = [...marketplaces]; n[i].commission = e.target.value; setMarketplaces(n); db.ref('marketplaces').set(n)}} className="p-3 text-xs" />
-                                            <input type="number" value={m.fixedFee} onChange={e => {const n = [...marketplaces]; n[i].fixedFee = e.target.value; setMarketplaces(n); db.ref('marketplaces').set(n)}} className="p-3 text-xs" />
-                                            <button onClick={() => {const n = marketplaces.filter(it => it.id !== m.id); setMarketplaces(n); db.ref('marketplaces').set(n)}} className="p-3 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all"><i data-lucide="trash-2" className="size-4 mx-auto"></i></button>
-                                        </div>
-                                    ))}
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="col-span-2 text-amber-500 font-bold text-xs uppercase tracking-widest border-b border-white/5 pb-2">Embalagem de Envio</div>
+                                        <div><label>Custo da Caixa (R$)</label><input type="number" step="0.01" value={logistics.packaging.cost} onChange={e => {const nl = {...logistics, packaging: {...logistics.packaging, cost: e.target.value}}; setLogistics(nl); db.ref('logistics').set(nl)}} /></div>
+                                        <div><label>Peso da Caixa (g)</label><input type="number" value={logistics.packaging.weight} onChange={e => {const nl = {...logistics, packaging: {...logistics.packaging, weight: e.target.value}}; setLogistics(nl); db.ref('logistics').set(nl)}} /></div>
+                                    </div>
                                 </div>
                             </div>
                         )}
                     </main>
 
                     {editingProduct && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4">
-                            <div className="bg-slate-900 w-full max-w-6xl rounded-[3.5rem] border border-white/10 flex flex-col max-h-[95vh] overflow-hidden">
-                                <div className="p-8 border-b border-white/5 flex justify-between items-center bg-black/20">
-                                    <h2 className="text-amber-500 font-black uppercase tracking-widest italic">Editor de SKU</h2>
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-4">
+                            <div className="bg-slate-900 w-full max-w-5xl rounded-[3rem] border border-white/10 flex flex-col max-h-[90vh] overflow-hidden">
+                                <div className="p-8 border-b border-white/5 flex justify-between items-center">
+                                    <h2 className="text-amber-500 font-black italic uppercase">Editor de Produto</h2>
                                     <button onClick={() => setEditingProduct(null)} className="text-slate-500 hover:text-white"><i data-lucide="x"></i></button>
                                 </div>
-                                <div className="flex-1 overflow-y-auto p-10 grid grid-cols-1 lg:grid-cols-2 gap-12 custom-scroll">
-                                    <div className="space-y-8">
+                                <div className="flex-1 overflow-y-auto p-10 grid grid-cols-1 lg:grid-cols-2 gap-10">
+                                    <div className="space-y-6">
+                                        <div><label>Nome do Produto</label><input value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} placeholder="Ex: Chaveiro Touro" /></div>
                                         <div className="grid grid-cols-2 gap-4">
-                                            <input value={editingProduct.sku} onChange={e => setEditingProduct({...editingProduct, sku: e.target.value})} className="p-4 font-black text-amber-500 uppercase" placeholder="SKU" />
-                                            <select value={editingProduct.selectedMarketplace} onChange={e => setEditingProduct({...editingProduct, selectedMarketplace: e.target.value})} className="p-4 text-[10px] font-black uppercase">
-                                                {marketplaces.map(m => <option key={m.id} value={m.id} className="bg-slate-900">{m.name}</option>)}
-                                            </select>
-                                        </div>
-                                        <textarea value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full p-5 h-20 font-bold" placeholder="Nome do Produto" />
-                                        
-                                        <div className="grid grid-cols-2 gap-6 p-6 bg-black/30 rounded-3xl border border-white/5">
-                                            <div><label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Peso Bruto (g)</label><input type="number" value={editingProduct.baseWeight} onChange={e => setEditingProduct({...editingProduct, baseWeight: e.target.value})} className="w-full bg-transparent border-none text-4xl font-black p-0 focus:ring-0" /></div>
-                                            <div><label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Tipo de Banho</label>
-                                                <select value={editingProduct.bathType} onChange={e => setEditingProduct({...editingProduct, bathType: e.target.value})} className="w-full bg-transparent border-none text-xl font-black p-0 focus:ring-0 text-amber-500 uppercase">
-                                                    <option value="ouro" className="bg-slate-900">Ouro</option>
-                                                    <option value="prata" className="bg-slate-900">Prata</option>
-                                                    <option value="niquel" className="bg-slate-900">Níquel</option>
-                                                    <option value="sem_banho" className="bg-slate-900">Sem Banho</option>
+                                            <div><label>SKU (Código)</label><input value={editingProduct.sku} onChange={e => setEditingProduct({...editingProduct, sku: e.target.value})} placeholder="LUARY-001" /></div>
+                                            <div><label>Canal de Venda</label>
+                                                <select value={editingProduct.selectedMarketplace} onChange={e => setEditingProduct({...editingProduct, selectedMarketplace: e.target.value})}>
+                                                    {marketplaces.map(m => <option key={m.id} value={m.id} className="bg-slate-900">{m.name}</option>)}
                                                 </select>
                                             </div>
                                         </div>
-
+                                        <div className="grid grid-cols-2 gap-4 p-6 bg-white/5 rounded-2xl">
+                                            <div><label>Peso Peça Bruta (g)</label><input type="number" value={editingProduct.baseWeight} onChange={e => setEditingProduct({...editingProduct, baseWeight: e.target.value})} /></div>
+                                            <div><label>Banho Escolhido</label>
+                                                <select value={editingProduct.bathType} onChange={e => setEditingProduct({...editingProduct, bathType: e.target.value})} className="text-amber-500 font-bold">
+                                                    <option value="ouro">Ouro</option>
+                                                    <option value="prata">Prata</option>
+                                                    <option value="niquel">Níquel</option>
+                                                    <option value="sem_banho">Sem Banho</option>
+                                                </select>
+                                            </div>
+                                        </div>
                                         <div className="space-y-4">
-                                            <div className="flex justify-between items-center"><span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Componentes e Mimos</span><button onClick={() => setEditingProduct({...editingProduct, components: [...(editingProduct.components || []), {name:'', value:0, weight:0}]})} className="text-amber-500 font-bold text-xs">+ Adicionar</button></div>
+                                            <div className="flex justify-between items-center"><label>Componentes (Argolas, Pingentes, Mimos)</label><button onClick={() => setEditingProduct({...editingProduct, components: [...(editingProduct.components || []), {name:'', value:0, weight:0}]})} className="text-amber-500 text-[10px] font-black">+ ADICIONAR ITEM</button></div>
                                             {(editingProduct.components || []).map((c, i) => (
-                                                <div key={i} className="flex gap-2 items-center bg-white/5 p-2 rounded-xl">
-                                                    <input placeholder="Item" value={c.name} onChange={e => {const n = [...editingProduct.components]; n[i].name = e.target.value; setEditingProduct({...editingProduct, components: n})}} className="flex-1 p-2 text-xs" />
-                                                    <input type="number" placeholder="g" value={c.weight} onChange={e => {const n = [...editingProduct.components]; n[i].weight = e.target.value; setEditingProduct({...editingProduct, components: n})}} className="w-16 p-2 text-xs text-center" />
-                                                    <input type="number" placeholder="R$" value={c.value} onChange={e => {const n = [...editingProduct.components]; n[i].value = e.target.value; setEditingProduct({...editingProduct, components: n})}} className="w-20 p-2 text-xs font-bold text-emerald-400" />
-                                                    <button onClick={() => setEditingProduct({...editingProduct, components: editingProduct.components.filter((_, idx) => idx !== i)})} className="text-rose-500 px-2"><i data-lucide="trash-2" className="size-4"></i></button>
+                                                <div key={i} className="flex gap-2 items-center bg-black/20 p-2 rounded-xl">
+                                                    <input placeholder="Nome" value={c.name} onChange={e => {const n = [...editingProduct.components]; n[i].name = e.target.value; setEditingProduct({...editingProduct, components: n})}} />
+                                                    <input type="number" placeholder="Peso (g)" className="w-24" value={c.weight} onChange={e => {const n = [...editingProduct.components]; n[i].weight = e.target.value; setEditingProduct({...editingProduct, components: n})}} />
+                                                    <input type="number" placeholder="Custo (R$)" className="w-24" value={c.value} onChange={e => {const n = [...editingProduct.components]; n[i].value = e.target.value; setEditingProduct({...editingProduct, components: n})}} />
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
 
-                                    <div className="bg-amber-500 rounded-[3rem] p-10 text-slate-950 flex flex-col justify-between shadow-2xl">
-                                        <div className="space-y-10">
-                                            <div className="flex gap-2 p-1 bg-black/10 rounded-2xl w-fit">
-                                                <button onClick={() => setEditingProduct({...editingProduct, strategy: 'margem'})} className={`px-8 py-3 rounded-xl text-[10px] font-black ${editingProduct.strategy === 'margem' ? 'bg-slate-950 text-amber-500' : 'opacity-40'}`}>MARGEM %</button>
-                                                <button onClick={() => setEditingProduct({...editingProduct, strategy: 'fixo'})} className={`px-8 py-3 rounded-xl text-[10px] font-black ${editingProduct.strategy === 'fixo' ? 'bg-slate-950 text-amber-500' : 'opacity-40'}`}>VALOR FIXO</button>
+                                    <div className="bg-amber-500 rounded-[2.5rem] p-10 text-slate-950 flex flex-col justify-between">
+                                        <div className="space-y-6">
+                                            <div className="flex gap-2">
+                                                <button onClick={() => setEditingProduct({...editingProduct, strategy: 'margem'})} className={`flex-1 p-3 rounded-xl text-[10px] font-black ${editingProduct.strategy === 'margem' ? 'bg-slate-950 text-amber-500' : 'bg-black/10'}`}>MARGEM %</button>
+                                                <button onClick={() => setEditingProduct({...editingProduct, strategy: 'fixo'})} className={`flex-1 p-3 rounded-xl text-[10px] font-black ${editingProduct.strategy === 'fixo' ? 'bg-slate-950 text-amber-500' : 'bg-black/10'}`}>PREÇO FIXO</button>
                                             </div>
                                             <div>
-                                                <label className="text-xs font-black uppercase opacity-60 block">{editingProduct.strategy === 'margem' ? 'Margem Alvo %' : 'Preço Venda R$'}</label>
-                                                <input type="number" step="0.01" value={editingProduct.strategy === 'margem' ? editingProduct.targetMargin : editingProduct.salePrice} onChange={e => setEditingProduct({...editingProduct, [editingProduct.strategy === 'margem' ? 'targetMargin' : 'salePrice']: e.target.value})} className="bg-transparent border-none text-8xl font-black w-full p-0 focus:ring-0" />
+                                                <label className="text-slate-900 opacity-60">{editingProduct.strategy === 'margem' ? 'Margem Alvo (%)' : 'Preço de Venda (R$)'}</label>
+                                                <input type="number" value={editingProduct.strategy === 'margem' ? editingProduct.targetMargin : editingProduct.salePrice} onChange={e => setEditingProduct({...editingProduct, [editingProduct.strategy === 'margem' ? 'targetMargin' : 'salePrice']: e.target.value})} className="!bg-slate-950/20 !border-slate-950/30 !text-6xl font-black" />
                                             </div>
-                                            <div className="border-t border-black/10 pt-8 grid grid-cols-2 gap-8 font-black">
-                                                <div><p className="text-[10px] opacity-60 uppercase">Custo Total</p><p className="text-3xl italic">R$ {calculate(editingProduct).totalProdCost.toFixed(2)}</p></div>
-                                                <div><p className="text-[10px] opacity-60 uppercase">Lucro Real</p><p className="text-3xl italic text-slate-900">R$ {calculate(editingProduct).profit.toFixed(2)}</p></div>
-                                                <div className="col-span-2"><p className="text-[10px] opacity-60 uppercase">Peso Final Frete</p><p className="text-xl">{calculate(editingProduct).totalWeight.toFixed(1)}g</p></div>
+                                            <div className="pt-6 border-t border-black/10">
+                                                <div className="flex justify-between font-black"><span>Custo Produção:</span><span>R$ {calculate(editingProduct).totalProdCost.toFixed(2)}</span></div>
+                                                <div className="flex justify-between font-black text-2xl mt-4"><span>Lucro Real:</span><span>R$ {calculate(editingProduct).profit.toFixed(2)}</span></div>
                                             </div>
                                         </div>
-                                        <button onClick={() => { db.ref(`products/${editingProduct.id}`).set(editingProduct); setEditingProduct(null); }} className="w-full py-8 bg-slate-950 text-amber-500 rounded-[2rem] font-black text-2xl uppercase tracking-tighter hover:scale-[1.02] transition-all shadow-xl">Salvar SKU</button>
+                                        <button onClick={() => { db.ref(`products/${editingProduct.id}`).set(editingProduct); setEditingProduct(null); }} className="w-full py-6 bg-slate-950 text-amber-500 rounded-2xl font-black text-xl hover:scale-105 transition-all">SALVAR NO SISTEMA</button>
                                     </div>
                                 </div>
                             </div>
@@ -258,7 +215,6 @@
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
-        setTimeout(() => lucide.createIcons(), 500);
     </script>
 </body>
 </html>
