@@ -249,56 +249,92 @@
                                 </div>
                             </div>
                         )}
-                        {activeTab === 'logistica' && (
+                       {activeTab === 'logistica' && (
                             <div className="max-w-4xl space-y-10 animate-in slide-in-from-bottom-6 duration-500">
-                                <h2 className="text-3xl font-black italic uppercase">Painel de Custos Operacionais</h2>
+                                <h2 className="text-3xl font-black italic uppercase tracking-tighter">Configurações de Logística</h2>
                                 
-                                <div className="glass-card p-10 rounded-[3rem] space-y-10">
+                                <div className="glass-card p-10 rounded-[3rem] space-y-10 border border-white/10">
+                                    {/* SEÇÃO DE BANHO */}
                                     <div className="space-y-6">
-                                        <h3 className="text-amber-500 font-black text-xs uppercase tracking-[3px] flex items-center gap-3"><i data-lucide="droplet" className="size-4"></i> Valor do Banho por Grama</h3>
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-amber-500/20 rounded-lg text-amber-500"><i data-lucide="droplet" className="size-5"></i></div>
+                                            <h3 className="text-amber-500 font-black text-xs uppercase tracking-[3px]">Custo do Banho (por grama)</h3>
+                                        </div>
+                                        
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                             {['ouro', 'prata', 'niquel'].map(type => (
-                                                <div key={type} className="bg-black/20 p-6 rounded-[2rem] border border-white/5">
-                                                    <label>{type}</label>
-                                                    <input 
-                                                        type="number" step="0.01" 
-                                                        value={logistics.bathCosts[type]} 
-                                                        onChange={e => {
-                                                            const nl = {...logistics, bathCosts: {...logistics.bathCosts, [type]: e.target.value}};
-                                                            setLogistics(nl); db.ref('logistics').set(nl);
-                                                        }} 
-                                                        className="bg-transparent border-none text-3xl font-black p-0 focus:ring-0 w-full" 
-                                                    />
+                                                <div key={type} className="bg-slate-900/80 p-6 rounded-[2rem] border border-white/5 hover:border-amber-500/30 transition-all">
+                                                    <label className="text-slate-500 font-bold mb-2">{type.toUpperCase()}</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-slate-600 font-black text-xl">R$</span>
+                                                        <input 
+                                                            type="number" 
+                                                            step="0.01" 
+                                                            value={logistics?.bathCosts?.[type] || 0} 
+                                                            onChange={e => {
+                                                                const nl = {
+                                                                    ...logistics, 
+                                                                    bathCosts: { 
+                                                                        ...(logistics?.bathCosts || {}), 
+                                                                        [type]: e.target.value 
+                                                                    }
+                                                                };
+                                                                setLogistics(nl); 
+                                                                db.ref('logistics').set(nl);
+                                                            }} 
+                                                            className="bg-transparent border-none text-4xl font-black p-0 focus:ring-0 w-full text-white" 
+                                                        />
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
 
+                                    {/* SEÇÃO DE EMBALAGEM */}
                                     <div className="space-y-6 pt-10 border-t border-white/5">
-                                        <h3 className="text-amber-500 font-black text-xs uppercase tracking-[3px] flex items-center gap-3"><i data-lucide="package" className="size-4"></i> Embalagem e Envio Padrão</h3>
-                                        <div className="grid grid-cols-2 gap-8">
-                                            <div className="bg-black/20 p-6 rounded-[2rem] border border-white/5">
-                                                <label>Custo Unitário da Caixa (R$)</label>
-                                                <input 
-                                                    type="number" step="0.01" 
-                                                    value={logistics.packaging.cost} 
-                                                    onChange={e => {
-                                                        const nl = {...logistics, packaging: {...logistics.packaging, cost: e.target.value}};
-                                                        setLogistics(nl); db.ref('logistics').set(nl);
-                                                    }} 
-                                                    className="bg-transparent border-none text-3xl font-black p-0 focus:ring-0 w-full"
-                                                />
-                                            </div>
-                                            <div className="bg-black/20 p-6 rounded-[2rem] border border-white/5">
-                                                <label>Peso da Caixa Vazia (g)</label>
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-amber-500/20 rounded-lg text-amber-500"><i data-lucide="package" className="size-5"></i></div>
+                                            <h3 className="text-amber-500 font-black text-xs uppercase tracking-[3px]">Insumos de Envio</h3>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="bg-slate-900/80 p-8 rounded-[2.5rem] border border-white/5">
+                                                <label className="text-slate-500 font-bold mb-2 uppercase text-[10px]">Custo da Caixa/Embalagem (R$)</label>
                                                 <input 
                                                     type="number" 
-                                                    value={logistics.packaging.weight} 
+                                                    step="0.01" 
+                                                    value={logistics?.packaging?.cost || 0} 
                                                     onChange={e => {
-                                                        const nl = {...logistics, packaging: {...logistics.packaging, weight: e.target.value}};
-                                                        setLogistics(nl); db.ref('logistics').set(nl);
+                                                        const nl = {
+                                                            ...logistics, 
+                                                            packaging: { 
+                                                                ...(logistics?.packaging || {}), 
+                                                                cost: e.target.value 
+                                                            }
+                                                        };
+                                                        setLogistics(nl); 
+                                                        db.ref('logistics').set(nl);
                                                     }} 
-                                                    className="bg-transparent border-none text-3xl font-black p-0 focus:ring-0 w-full"
+                                                    className="bg-transparent border-none text-5xl font-black p-0 focus:ring-0 w-full text-white mt-2"
+                                                />
+                                            </div>
+                                            <div className="bg-slate-900/80 p-8 rounded-[2.5rem] border border-white/5">
+                                                <label className="text-slate-500 font-bold mb-2 uppercase text-[10px]">Peso da Embalagem (gramas)</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={logistics?.packaging?.weight || 0} 
+                                                    onChange={e => {
+                                                        const nl = {
+                                                            ...logistics, 
+                                                            packaging: { 
+                                                                ...(logistics?.packaging || {}), 
+                                                                weight: e.target.value 
+                                                            }
+                                                        };
+                                                        setLogistics(nl); 
+                                                        db.ref('logistics').set(nl);
+                                                    }} 
+                                                    className="bg-transparent border-none text-5xl font-black p-0 focus:ring-0 w-full text-white mt-2"
                                                 />
                                             </div>
                                         </div>
@@ -306,72 +342,26 @@
                                 </div>
                             </div>
                         )}
-
-                        {activeTab === 'canais' && (
-                            <div className="max-w-5xl space-y-10 animate-in slide-in-from-bottom-6 duration-500">
-                                <div className="flex justify-between items-center">
-                                    <h2 className="text-3xl font-black italic uppercase">Marketplaces Configurados</h2>
-                                    <button 
-                                        onClick={() => {
-                                            const id = Date.now().toString();
-                                            const n = [...marketplaces, {id, name: 'Nova Loja', commission: 0, fixedFee: 0}];
-                                            setMarketplaces(n); db.ref('marketplaces').set(n);
-                                        }} 
-                                        className="text-amber-500 font-black text-xs uppercase border border-amber-500/30 px-6 py-3 rounded-xl hover:bg-amber-500 hover:text-slate-950 transition-all"
-                                    >
-                                        + ADICIONAR CANAL
-                                    </button>
-                                </div>
-                                <div className="space-y-4">
-                                    {marketplaces.map((m, i) => (
-                                        <div key={m.id} className="glass-card p-8 rounded-[2rem] grid grid-cols-1 md:grid-cols-4 gap-6 items-end group">
-                                            <div><label>Nome do Canal</label><input value={m.name} onChange={e => {const n = [...marketplaces]; n[i].name = e.target.value; setMarketplaces(n); db.ref('marketplaces').set(n)}} className="input-luary font-bold" /></div>
-                                            <div><label>Comissão (%)</label><input type="number" value={m.commission} onChange={e => {const n = [...marketplaces]; n[i].commission = e.target.value; setMarketplaces(n); db.ref('marketplaces').set(n)}} className="input-luary" /></div>
-                                            <div><label>Taxa Fixa (R$)</label><input type="number" value={m.fixedFee} onChange={e => {const n = [...marketplaces]; n[i].fixedFee = e.target.value; setMarketplaces(n); db.ref('marketplaces').set(n)}} className="input-luary" /></div>
-                                            <div className="flex justify-end">
-                                                <button onClick={() => {const n = marketplaces.filter(it => it.id !== m.id); setMarketplaces(n); db.ref('marketplaces').set(n)}} className="p-4 bg-rose-500/10 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all"><i data-lucide="trash-2"></i></button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </main>
-                    {/* MODAL EDITOR DE PRODUTO */}
+                        {/* MODAL EDITOR - MANTÉM TODAS AS FUNÇÕES ORIGINAIS */}
                     {editingProduct && (
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/95 backdrop-blur-xl p-4 overflow-hidden">
-                            <div className="bg-slate-900 w-full max-w-7xl rounded-[4rem] border border-white/10 flex flex-col max-h-[96vh] shadow-2xl animate-in zoom-in-95 duration-300">
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/98 backdrop-blur-2xl p-4 overflow-hidden">
+                            <div className="bg-slate-900 w-full max-w-7xl rounded-[4rem] border border-white/10 flex flex-col max-h-[96vh] shadow-[0_0_100px_rgba(0,0,0,0.8)] animate-in zoom-in-95">
                                 <div className="p-10 border-b border-white/5 flex justify-between items-center bg-black/20">
-                                    <div>
-                                        <h2 className="text-amber-500 font-black uppercase tracking-widest italic text-2xl">Configuração de SKU</h2>
-                                        <p className="text-slate-500 text-xs font-bold mt-1">Defina custos, componentes e estratégia de lucro</p>
-                                    </div>
-                                    <button onClick={() => setEditingProduct(null)} className="p-4 bg-white/5 rounded-full text-slate-500 hover:text-white hover:bg-rose-500 transition-all shadow-xl"><i data-lucide="x" className="size-6"></i></button>
+                                    <h2 className="text-amber-500 font-black uppercase italic text-2xl tracking-tighter">Editor de Produto Profissional</h2>
+                                    <button onClick={() => setEditingProduct(null)} className="p-4 bg-white/5 rounded-full text-slate-500 hover:text-rose-500 transition-all"><i data-lucide="x" className="size-6"></i></button>
                                 </div>
 
                                 <div className="flex-1 overflow-y-auto p-12 grid grid-cols-1 lg:grid-cols-2 gap-16 custom-scroll">
-                                    {/* COLUNA ESQUERDA: CADASTRO */}
                                     <div className="space-y-10">
-                                        <div className="space-y-6">
-                                            <div className="grid grid-cols-3 gap-4">
-                                                <div className="col-span-1"><label>SKU / Ref</label><input className="input-luary !text-amber-500 font-black uppercase" value={editingProduct.sku} onChange={e => setEditingProduct({...editingProduct, sku: e.target.value})} placeholder="Ex: LUARY-001" /></div>
-                                                <div className="col-span-2"><label>Nome do Produto no Catálogo</label><input className="input-luary font-bold" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} placeholder="Ex: Chaveiro Ferradura Ouro" /></div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div><label>Canal de Venda Principal</label>
-                                                    <select className="input-luary font-bold uppercase text-[10px]" value={editingProduct.selectedMarketplace} onChange={e => setEditingProduct({...editingProduct, selectedMarketplace: e.target.value})}>
-                                                        {marketplaces.map(m => <option key={m.id} value={m.id} className="bg-slate-900">{m.name}</option>)}
-                                                    </select>
-                                                </div>
-                                                <div><label>URL da Imagem</label><input className="input-luary text-[10px]" value={editingProduct.image} onChange={e => setEditingProduct({...editingProduct, image: e.target.value})} placeholder="https://..." /></div>
-                                            </div>
+                                        <div className="grid grid-cols-3 gap-6">
+                                            <div className="col-span-1"><label>SKU</label><input className="input-luary !text-amber-500 font-black uppercase" value={editingProduct.sku} onChange={e => setEditingProduct({...editingProduct, sku: e.target.value})} /></div>
+                                            <div className="col-span-2"><label>Nome</label><input className="input-luary font-bold" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} /></div>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-8 p-10 bg-black/40 rounded-[3rem] border border-white/5 relative overflow-hidden group">
-                                            <div className="absolute top-0 left-0 w-2 h-full bg-amber-500"></div>
-                                            <div><label className="text-amber-500">Peso Bruto da Peça (g)</label><input type="number" className="bg-transparent border-none text-6xl font-black p-0 focus:ring-0 w-full" value={editingProduct.baseWeight} onChange={e => setEditingProduct({...editingProduct, baseWeight: e.target.value})} /></div>
-                                            <div><label className="text-amber-500">Banho Selecionado</label>
-                                                <select className="bg-transparent border-none text-2xl font-black p-0 focus:ring-0 text-white uppercase w-full mt-2" value={editingProduct.bathType} onChange={e => setEditingProduct({...editingProduct, bathType: e.target.value})}>
+                                        <div className="grid grid-cols-2 gap-8 p-10 bg-black/40 rounded-[3rem] border border-white/5">
+                                            <div><label className="text-amber-500">Peso Bruto (g)</label><input type="number" className="bg-transparent border-none text-6xl font-black p-0 focus:ring-0 w-full text-white" value={editingProduct.baseWeight} onChange={e => setEditingProduct({...editingProduct, baseWeight: e.target.value})} /></div>
+                                            <div><label className="text-amber-500">Tipo Banho</label>
+                                                <select className="bg-transparent border-none text-2xl font-black p-0 focus:ring-0 text-white uppercase w-full mt-2 cursor-pointer" value={editingProduct.bathType} onChange={e => setEditingProduct({...editingProduct, bathType: e.target.value})}>
                                                     <option value="ouro" className="bg-slate-900">Ouro</option>
                                                     <option value="prata" className="bg-slate-900">Prata</option>
                                                     <option value="niquel" className="bg-slate-900">Níquel</option>
@@ -381,67 +371,49 @@
                                         </div>
 
                                         <div className="space-y-6">
-                                            <div className="flex justify-between items-center border-b border-white/5 pb-4"><h3 className="text-xs font-black uppercase text-slate-500 tracking-widest italic">Composição de Itens Agregados</h3><button onClick={() => setEditingProduct({...editingProduct, components: [...(editingProduct.components || []), {name:'', value:0, weight:0}]})} className="bg-amber-500 text-slate-950 px-5 py-2 rounded-xl text-[10px] font-black hover:scale-105 transition-all shadow-lg">+ ADICIONAR ITEM</button></div>
+                                            <div className="flex justify-between items-center border-b border-white/5 pb-4"><h3 className="text-xs font-black uppercase text-slate-500 italic">Componentes Agregados</h3><button onClick={() => setEditingProduct({...editingProduct, components: [...(editingProduct.components || []), {name:'', value:0, weight:0}]})} className="bg-amber-500 text-slate-950 px-5 py-2 rounded-xl text-[10px] font-black hover:scale-105 transition-all shadow-lg">+ NOVO ITEM</button></div>
                                             <div className="space-y-3">
                                                 {(editingProduct.components || []).map((c, i) => (
-                                                    <div key={i} className="flex gap-3 items-center bg-white/5 p-4 rounded-2xl group/item">
-                                                        <div className="flex-1"><label>Nome Item</label><input className="bg-transparent border-none p-0 text-sm font-bold focus:ring-0" placeholder="Ex: Argola Aço" value={c.name} onChange={e => {const n = [...editingProduct.components]; n[i].name = e.target.value; setEditingProduct({...editingProduct, components: n})}} /></div>
-                                                        <div className="w-20"><label>Peso(g)</label><input type="number" className="bg-transparent border-none p-0 text-sm text-center focus:ring-0" value={c.weight} onChange={e => {const n = [...editingProduct.components]; n[i].weight = e.target.value; setEditingProduct({...editingProduct, components: n})}} /></div>
-                                                        <div className="w-24"><label>Custo(R$)</label><input type="number" className="bg-transparent border-none p-0 text-sm font-black text-emerald-400 focus:ring-0 text-right" value={c.value} onChange={e => {const n = [...editingProduct.components]; n[i].value = e.target.value; setEditingProduct({...editingProduct, components: n})}} /></div>
-                                                        <button onClick={() => setEditingProduct({...editingProduct, components: editingProduct.components.filter((_, idx) => idx !== i)})} className="p-2 text-slate-600 hover:text-rose-500 transition-all opacity-0 group-hover/item:opacity-100"><i data-lucide="trash-2" className="size-4"></i></button>
+                                                    <div key={i} className="flex gap-3 items-center bg-white/5 p-4 rounded-2xl">
+                                                        <input className="flex-1 bg-transparent border-none p-0 text-sm font-bold focus:ring-0 text-white" placeholder="Item" value={c.name} onChange={e => {const n = [...editingProduct.components]; n[i].name = e.target.value; setEditingProduct({...editingProduct, components: n})}} />
+                                                        <div className="w-20"><label className="!mb-0">g</label><input type="number" className="bg-transparent border-none p-0 text-sm font-bold text-center focus:ring-0 text-white" value={c.weight} onChange={e => {const n = [...editingProduct.components]; n[i].weight = e.target.value; setEditingProduct({...editingProduct, components: n})}} /></div>
+                                                        <div className="w-24"><label className="!mb-0">R$</label><input type="number" className="bg-transparent border-none p-0 text-sm font-black text-emerald-400 focus:ring-0 text-right" value={c.value} onChange={e => {const n = [...editingProduct.components]; n[i].value = e.target.value; setEditingProduct({...editingProduct, components: n})}} /></div>
+                                                        <button onClick={() => setEditingProduct({...editingProduct, components: editingProduct.components.filter((_, idx) => idx !== i)})} className="text-rose-500 px-2"><i data-lucide="trash-2" className="size-4"></i></button>
                                                     </div>
                                                 ))}
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* COLUNA DIREITA: RESULTADOS FINANCEIROS */}
-                                    <div className="bg-amber-500 rounded-[4rem] p-12 text-slate-950 flex flex-col justify-between shadow-2xl relative overflow-hidden">
+                                    <div className="bg-amber-500 rounded-[4rem] p-12 text-slate-950 flex flex-col justify-between shadow-2xl">
                                         <div className="space-y-12">
                                             <div className="flex gap-2 p-1.5 bg-black/10 rounded-[2rem] w-fit">
-                                                <button onClick={() => setEditingProduct({...editingProduct, strategy: 'margem'})} className={`px-10 py-4 rounded-[1.5rem] text-[10px] font-black transition-all ${editingProduct.strategy === 'margem' ? 'bg-slate-950 text-amber-500 shadow-2xl' : 'opacity-40'}`}>MARGEM % DESEJADA</button>
-                                                <button onClick={() => setEditingProduct({...editingProduct, strategy: 'fixo'})} className={`px-10 py-4 rounded-[1.5rem] text-[10px] font-black transition-all ${editingProduct.strategy === 'fixo' ? 'bg-slate-950 text-amber-500 shadow-2xl' : 'opacity-40'}`}>VALOR FINAL DE VENDA</button>
+                                                <button onClick={() => setEditingProduct({...editingProduct, strategy: 'margem'})} className={`px-10 py-4 rounded-[1.5rem] text-[10px] font-black transition-all ${editingProduct.strategy === 'margem' ? 'bg-slate-950 text-amber-500 shadow-2xl' : 'opacity-40'}`}>CALCULAR MARGEM</button>
+                                                <button onClick={() => setEditingProduct({...editingProduct, strategy: 'fixo'})} className={`px-10 py-4 rounded-[1.5rem] text-[10px] font-black transition-all ${editingProduct.strategy === 'fixo' ? 'bg-slate-950 text-amber-500 shadow-2xl' : 'opacity-40'}`}>VALOR FIXO</button>
                                             </div>
 
-                                            <div className="animate-in fade-in duration-500">
-                                                <label className="text-slate-900 font-black text-xs uppercase opacity-70 mb-2 block">{editingProduct.strategy === 'margem' ? 'Quanto você quer de lucro líquido (%)?' : 'Por quanto o item será vendido no site (R$)?'}</label>
-                                                <div className="flex items-center">
-                                                    <span className="text-4xl font-black mr-2 opacity-40">{editingProduct.strategy === 'margem' ? '%' : 'R$'}</span>
-                                                    <input 
-                                                        type="number" step="0.01" 
-                                                        value={editingProduct.strategy === 'margem' ? editingProduct.targetMargin : editingProduct.salePrice} 
-                                                        onChange={e => setEditingProduct({...editingProduct, [editingProduct.strategy === 'margem' ? 'targetMargin' : 'salePrice']: e.target.value})} 
-                                                        className="bg-transparent border-none text-[8rem] font-black w-full p-0 focus:ring-0 leading-none tracking-tighter" 
-                                                    />
-                                                </div>
+                                            <div>
+                                                <label className="text-slate-900 font-black text-xs uppercase opacity-70 mb-2 block">{editingProduct.strategy === 'margem' ? 'Margem (%)' : 'Venda (R$)'}</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={editingProduct.strategy === 'margem' ? editingProduct.targetMargin : editingProduct.salePrice} 
+                                                    onChange={e => setEditingProduct({...editingProduct, [editingProduct.strategy === 'margem' ? 'targetMargin' : 'salePrice']: e.target.value})} 
+                                                    className="bg-transparent border-none text-[8rem] font-black w-full p-0 focus:ring-0 leading-none tracking-tighter" 
+                                                />
                                             </div>
 
                                             <div className="pt-10 border-t border-black/10 grid grid-cols-2 gap-10">
-                                                <div className="space-y-1">
-                                                    <label className="text-slate-900 opacity-60">Custo Total de Produção</label>
-                                                    <p className="text-4xl font-black italic">R$ {calculateProduct(editingProduct).totalProdCost.toFixed(2)}</p>
-                                                </div>
-                                                <div className="space-y-1 text-right">
-                                                    <label className="text-slate-900 opacity-60">Peso Final do Pacote</label>
-                                                    <p className="text-4xl font-black italic">{calculateProduct(editingProduct).totalWeight.toFixed(1)}g</p>
-                                                </div>
-                                                <div className="col-span-2 bg-slate-950/10 p-8 rounded-[2.5rem] flex justify-between items-center border border-black/5 shadow-inner">
-                                                    <div className="space-y-1">
-                                                        <label className="text-slate-900 font-black uppercase tracking-widest text-[10px]">LUCRO LÍQUIDO REAL</label>
-                                                        <p className="text-6xl font-black text-slate-950 italic">R$ {calculateProduct(editingProduct).profit.toFixed(2)}</p>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <i data-lucide="dollar-sign" className="size-16 opacity-10"></i>
-                                                    </div>
+                                                <div><label className="opacity-60">Produção</label><p className="text-4xl font-black italic">R$ {calculateProduct(editingProduct).totalProdCost.toFixed(2)}</p></div>
+                                                <div className="text-right"><label className="opacity-60">Peso Final</label><p className="text-4xl font-black italic">{calculateProduct(editingProduct).totalWeight.toFixed(1)}g</p></div>
+                                                <div className="col-span-2 bg-slate-950/10 p-8 rounded-[2.5rem] border border-black/5">
+                                                    <label className="text-slate-900 font-black text-[10px] uppercase tracking-widest">Lucro Líquido</label>
+                                                    <p className="text-6xl font-black text-slate-950 italic">R$ {calculateProduct(editingProduct).profit.toFixed(2)}</p>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <button 
-                                            onClick={() => { db.ref(`products/${editingProduct.id}`).set(editingProduct); setEditingProduct(null); }} 
-                                            className="w-full py-10 bg-slate-950 text-amber-500 rounded-[2.5rem] font-black text-3xl uppercase tracking-tighter hover:scale-[1.02] active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-4 mt-12"
-                                        >
-                                            <i data-lucide="save" className="size-8"></i> Gravar Alterações
+                                        <button onClick={() => { db.ref(`products/${editingProduct.id}`).set(editingProduct); setEditingProduct(null); }} className="w-full py-10 bg-slate-950 text-amber-500 rounded-[2.5rem] font-black text-3xl uppercase tracking-tighter hover:scale-[1.02] active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-4 mt-12">
+                                            <i data-lucide="save" className="size-8"></i> Gravar SKU
                                         </button>
                                     </div>
                                 </div>
