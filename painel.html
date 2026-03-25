@@ -1,40 +1,45 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luary Shop | Gestão de Precisão</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Luary Shop | Gestão de Precisão</title>
 
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
 
-    <style>
-        body { font-family: 'Poppins', sans-serif; background-color: #F8FAFC; color: #1E293B; }
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
-    </style>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;900&display=swap" rel="stylesheet">
+
+<style>
+body { font-family: 'Poppins', sans-serif; background:#F8FAFC; }
+.custom-scroll::-webkit-scrollbar { width:4px; }
+.custom-scroll::-webkit-scrollbar-thumb { background:#475569; border-radius:10px; }
+</style>
 </head>
+
 <body>
 <div id="root"></div>
 
 <script type="text/babel">
+
 const { useState, useEffect } = React;
 
 const firebaseConfig = {
-    apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
-    databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
+ apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
+ databaseURL: "https://luary-shop-default-rtdb.firebaseio.com"
 };
 
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* 🔥 ICON FIX */
+/* 🔥 ICON FIX DEFINITIVO */
 const Icon = ({ name, size = 18, className = "" }) => {
     useEffect(() => {
         const t = setTimeout(() => {
@@ -43,171 +48,187 @@ const Icon = ({ name, size = 18, className = "" }) => {
         return () => clearTimeout(t);
     });
 
-    return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
+    return (
+        <i data-lucide={name}
+           className={className}
+           style={{ width:size, height:size, display:'inline-block' }}>
+        </i>
+    );
 };
 
 const App = () => {
 
-    const [activeTab, setActiveTab] = useState('catalogo');
-    const [products, setProducts] = useState([]);
-    const [marketplaces, setMarketplaces] = useState([]);
-    const [logistics, setLogistics] = useState({
-        packaging: { cost: 1.5, weight: 20 },
-        bathCosts: { ouro: 0.8, prata: 0.6, niquel: 0.4, sem_banho: 0 }
-    });
-    const [editingProduct, setEditingProduct] = useState(null);
+const [activeTab,setActiveTab] = useState('catalogo');
+const [products,setProducts] = useState([]);
+const [marketplaces,setMarketplaces] = useState([]);
+const [logistics,setLogistics] = useState({
+ packaging:{cost:1.5,weight:20},
+ bathCosts:{ouro:0.8,prata:0.6,niquel:0.4,sem_banho:0}
+});
+const [editingProduct,setEditingProduct] = useState(null);
 
-    /* 🔥 OBSERVER GLOBAL (resolve 100%) */
-    useEffect(() => {
-        const observer = new MutationObserver(() => {
-            if (window.lucide) window.lucide.createIcons();
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-        return () => observer.disconnect();
-    }, []);
+/* 🔥 OBSERVER GLOBAL */
+useEffect(()=>{
+ const obs = new MutationObserver(()=>{
+   if(window.lucide) window.lucide.createIcons();
+ });
+ obs.observe(document.body,{childList:true,subtree:true});
+ return ()=>obs.disconnect();
+},[]);
 
-    useEffect(() => {
-        db.ref('products').on('value', s =>
-            setProducts(Object.entries(s.val() || {}).map(([id, v]) => ({ id, ...v })))
-        );
-        db.ref('marketplaces').on('value', s =>
-            setMarketplaces(Object.entries(s.val() || {}).map(([id, v]) => ({ id, ...v })))
-        );
-        db.ref('logistics').on('value', s => s.val() && setLogistics(s.val()));
-    }, []);
+useEffect(()=>{
+ db.ref('products').on('value',s=>{
+   setProducts(Object.entries(s.val()||{}).map(([id,v])=>({id,...v})))
+ });
 
-    const calculateProduct = (prod) => {
-        if (!prod) return { totalProdCost: 0, finalPrice: 0, profit: 0, suggestedPrice: 0, totalWeight: 0 };
+ db.ref('marketplaces').on('value',s=>{
+   setMarketplaces(Object.entries(s.val()||{}).map(([id,v])=>({id,...v})))
+ });
 
-        const mp = marketplaces.find(m => m.id === prod.selectedMarketplace) || { commission: 0, fixedFee: 0, extraFees: [] };
+ db.ref('logistics').on('value',s=>{
+   if(s.val()) setLogistics(s.val())
+ });
+},[]);
 
-        const extraCostsSum = (prod.additionalCosts || []).reduce((a, c) => a + Number(c.value || 0), 0);
-        const extraWeightsSum = (prod.additionalCosts || []).reduce((a, c) => a + Number(c.weight || 0), 0);
+/* 🔥 CALCULO ORIGINAL */
+const calculateProduct = (prod)=>{
+ if(!prod) return {totalProdCost:0,finalPrice:0,profit:0,suggestedPrice:0,totalWeight:0};
 
-        const totalWeight = Number(prod.baseWeight || 0) + Number(logistics.packaging.weight || 0) + extraWeightsSum;
-        const bathVal = (Number(prod.baseWeight) || 0) * (Number(logistics.bathCosts[prod.bathType]) || 0);
+ const mp = marketplaces.find(m=>m.id===prod.selectedMarketplace) || {commission:0,fixedFee:0,extraFees:[]};
 
-        const totalProdCost = bathVal + extraCostsSum + Number(logistics.packaging.cost);
+ const extraCosts = (prod.additionalCosts||[]).reduce((a,c)=>a+Number(c.value||0),0);
+ const extraWeights = (prod.additionalCosts||[]).reduce((a,c)=>a+Number(c.weight||0),0);
 
-        const fixedFeesSum = Number(mp.fixedFee || 0) + (mp.extraFees || []).reduce((a, f) => f.type === 'fixo' ? a + Number(f.value || 0) : a, 0);
-        const percentFeesSum = Number(mp.commission || 0) + (mp.extraFees || []).reduce((a, f) => f.type === 'percent' ? a + Number(f.value || 0) : a, 0);
+ const totalWeight = Number(prod.baseWeight||0)+Number(logistics.packaging.weight||0)+extraWeights;
+ const bathVal = (Number(prod.baseWeight)||0)*(Number(logistics.bathCosts[prod.bathType])||0);
 
-        const divisor = (1 - (percentFeesSum + Number(prod.targetMargin || 0)) / 100);
-        const suggestedPrice = divisor > 0 ? (totalProdCost + fixedFeesSum) / divisor : 0;
+ const totalProdCost = bathVal + extraCosts + Number(logistics.packaging.cost);
 
-        const finalPrice = prod.strategy === 'margem' ? suggestedPrice : Number(prod.salePrice || 0);
-        const variableFeesAmount = finalPrice * (percentFeesSum / 100);
-        const profit = finalPrice - totalProdCost - variableFeesAmount - fixedFeesSum;
+ const fixedFees = Number(mp.fixedFee||0)+(mp.extraFees||[]).reduce((a,f)=>f.type==='fixo'?a+Number(f.value||0):a,0);
+ const percentFees = Number(mp.commission||0)+(mp.extraFees||[]).reduce((a,f)=>f.type==='percent'?a+Number(f.value||0):a,0);
 
-        return { totalProdCost, finalPrice, profit, suggestedPrice, totalWeight };
-    };
+ const divisor = 1 - (percentFees + Number(prod.targetMargin||0))/100;
+ const suggestedPrice = divisor>0 ? (totalProdCost + fixedFees)/divisor : 0;
 
-    const duplicateProduct = (prod) => {
-        const { id, ...data } = prod;
-        const newKey = db.ref('products').push().key;
-        db.ref(`products/${newKey}`).set({
-            ...data,
-            id: newKey,
-            name: data.name + ' (Cópia)',
-            sku: data.sku + '-C'
-        });
-    };
+ const finalPrice = prod.strategy==='margem' ? suggestedPrice : Number(prod.salePrice||0);
+ const variableFees = finalPrice*(percentFees/100);
 
-    const exportCSV = () => {
-        const headers = ["Nome","SKU","Canal","Preco","Lucro","Peso"];
-        const rows = products.map(p => {
-            const r = calculateProduct(p);
-            const mp = marketplaces.find(m => m.id === p.selectedMarketplace)?.name || "";
-            return [p.name, p.sku, mp, r.finalPrice.toFixed(2), r.profit.toFixed(2), r.totalWeight.toFixed(1)];
-        });
+ const profit = finalPrice - totalProdCost - variableFees - fixedFees;
 
-        const csv = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
-        const link = document.createElement("a");
-        link.href = encodeURI(csv);
-        link.download = "produtos.csv";
-        link.click();
-    };
-
-    return (
-        <div className="flex min-h-screen">
-
-            <aside className="w-20 lg:w-64 bg-slate-900 text-white p-6 fixed h-full">
-                <nav className="space-y-4">
-                    {[
-                        { id:'catalogo', icon:'package' },
-                        { id:'marketplaces', icon:'shopping-cart' },
-                        { id:'logistics', icon:'truck' }
-                    ].map(tab => (
-                        <button key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className="w-full flex justify-center p-4 rounded-2xl hover:bg-white/10">
-                            <Icon name={tab.icon}/>
-                        </button>
-                    ))}
-                </nav>
-            </aside>
-
-            <main className="ml-20 lg:ml-64 p-8 w-full">
-
-                {activeTab === 'catalogo' && (
-                    <div>
-                        <button onClick={exportCSV}>Exportar CSV</button>
-
-                        <button onClick={()=>{
-                            const key = db.ref('products').push().key;
-                            db.ref(`products/${key}`).set({
-                                id:key,
-                                name:"Novo Produto",
-                                sku:"REF",
-                                baseWeight:0,
-                                bathType:"ouro",
-                                strategy:"margem",
-                                targetMargin:50,
-                                selectedMarketplace:"",
-                                additionalCosts:[]
-                            });
-                        }}>+ Produto</button>
-
-                        <div>
-                            {products.map(p=>{
-                                const r = calculateProduct(p);
-                                return (
-                                    <div key={p.id}>
-                                        <p>{p.name}</p>
-                                        <p>R$ {r.finalPrice.toFixed(2)}</p>
-                                        <button onClick={()=>duplicateProduct(p)}>Duplicar</button>
-                                        <button onClick={()=>setEditingProduct(p)}>Editar</button>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {activeTab === 'marketplaces' && (
-                    <div>
-                        <button onClick={()=>{
-                            const key = db.ref('marketplaces').push().key;
-                            db.ref(`marketplaces/${key}`).set({
-                                id:key,name:"Novo",commission:10,fixedFee:5,extraFees:[]
-                            });
-                        }}>+ Canal</button>
-                    </div>
-                )}
-
-                {activeTab === 'logistics' && (
-                    <div>
-                        <p>Logística ativa</p>
-                    </div>
-                )}
-
-            </main>
-
-        </div>
-    );
+ return {totalProdCost,finalPrice,profit,suggestedPrice,totalWeight};
 };
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+const duplicateProduct = (p)=>{
+ const {id,...data} = p;
+ const key = db.ref('products').push().key;
+ db.ref(`products/${key}`).set({
+   ...data,
+   id:key,
+   name:data.name+" (Cópia)",
+   sku:data.sku+"-C"
+ });
+};
+
+const exportCSV = ()=>{
+ const rows = products.map(p=>{
+   const r = calculateProduct(p);
+   return `${p.name},${p.sku},${r.finalPrice},${r.profit}`;
+ });
+
+ const csv = "data:text/csv;charset=utf-8," + rows.join("\n");
+ const link = document.createElement("a");
+ link.href = encodeURI(csv);
+ link.download = "produtos.csv";
+ link.click();
+};
+
+/* 🔥 UI ORIGINAL */
+return (
+<div className="flex min-h-screen">
+
+<aside className="w-20 lg:w-64 bg-slate-900 text-white p-6 fixed h-full">
+<nav className="space-y-4">
+{[
+{id:'catalogo',icon:'package'},
+{id:'marketplaces',icon:'shopping-cart'},
+{id:'logistics',icon:'truck'}
+].map(tab=>(
+<button key={tab.id}
+onClick={()=>setActiveTab(tab.id)}
+className="w-full flex justify-center lg:justify-start gap-4 p-4 rounded-2xl hover:bg-white/10">
+<Icon name={tab.icon}/>
+</button>
+))}
+</nav>
+</aside>
+
+<main className="ml-20 lg:ml-64 p-8 w-full">
+
+{activeTab==='catalogo' && (
+<div>
+<button onClick={exportCSV}>Exportar CSV</button>
+
+<button onClick={()=>{
+const key = db.ref('products').push().key;
+db.ref(`products/${key}`).set({
+id:key,
+sku:'REF-00',
+name:'Novo Produto',
+baseWeight:0,
+bathType:'ouro',
+strategy:'margem',
+targetMargin:50,
+selectedMarketplace:'',
+additionalCosts:[]
+});
+}}>
++ Produto
+</button>
+
+<div className="grid grid-cols-3 gap-4 mt-6">
+{products.map(p=>{
+const r = calculateProduct(p);
+return (
+<div key={p.id} className="bg-white p-4 rounded-xl shadow">
+<h3>{p.name}</h3>
+<p>R$ {r.finalPrice.toFixed(2)}</p>
+<p>Lucro: {r.profit.toFixed(2)}</p>
+
+<button onClick={()=>duplicateProduct(p)}>Duplicar</button>
+<button onClick={()=>setEditingProduct(p)}>Editar</button>
+</div>
+);
+})}
+</div>
+</div>
+)}
+
+{activeTab==='marketplaces' && (
+<div>
+<button onClick={()=>{
+const key = db.ref('marketplaces').push().key;
+db.ref(`marketplaces/${key}`).set({
+id:key,name:'Novo Canal',commission:15,fixedFee:5,extraFees:[]
+});
+}}>
++ Canal
+</button>
+</div>
+)}
+
+{activeTab==='logistics' && (
+<div>
+<p>Configuração de logística ativa</p>
+</div>
+)}
+
+</main>
+</div>
+);
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+
 </script>
 </body>
 </html>
