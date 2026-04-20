@@ -10,15 +10,14 @@ export default function App() {
   const adicionar = () => {
     if (!nome || !sku) return;
 
-    setProdutos([
-      ...produtos,
-      {
-        id: Date.now(),
-        nome,
-        sku,
-        custo,
-      },
-    ]);
+    const novoProduto = {
+      id: Date.now(),
+      nome,
+      sku,
+      custo: parseFloat(custo || 0),
+    };
+
+    setProdutos((prev) => [...prev, novoProduto]);
 
     setNome("");
     setSku("");
@@ -26,7 +25,7 @@ export default function App() {
   };
 
   const remover = (id) => {
-    setProdutos(produtos.filter((p) => p.id !== id));
+    setProdutos((prev) => prev.filter((p) => p.id !== id));
   };
 
   return (
@@ -39,7 +38,7 @@ export default function App() {
         <nav className="space-y-3">
           <div className="flex items-center gap-2 p-2 bg-gray-800 rounded">
             <Package size={18} />
-            Produtos
+            <span>Produtos</span>
           </div>
         </nav>
       </aside>
@@ -53,7 +52,7 @@ export default function App() {
 
           <button
             onClick={adicionar}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
           >
             <Plus size={18} />
             Novo Produto
@@ -63,19 +62,19 @@ export default function App() {
         {/* FORM */}
         <div className="bg-white p-4 rounded shadow mb-6 grid grid-cols-3 gap-4">
           <input
-            className="border p-2 rounded"
+            className="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="SKU"
             value={sku}
             onChange={(e) => setSku(e.target.value)}
           />
           <input
-            className="border p-2 rounded"
+            className="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Nome"
             value={nome}
             onChange={(e) => setNome(e.target.value)}
           />
           <input
-            className="border p-2 rounded"
+            className="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Custo"
             type="number"
             value={custo}
@@ -105,17 +104,17 @@ export default function App() {
               )}
 
               {produtos.map((p) => (
-                <tr key={p.id} className="border-t">
-                  <td className="p-3">{p.sku}</td>
+                <tr key={p.id} className="border-t hover:bg-gray-50">
+                  <td className="p-3 font-medium">{p.sku}</td>
                   <td className="p-3">{p.nome}</td>
-                  <td className="p-3">R$ {p.custo}</td>
+                  <td className="p-3">R$ {p.custo.toFixed(2)}</td>
                   <td className="p-3 flex gap-2">
-                    <button className="p-2 bg-yellow-400 rounded">
+                    <button className="p-2 bg-yellow-400 rounded hover:opacity-80">
                       <Pencil size={16} />
                     </button>
                     <button
                       onClick={() => remover(p.id)}
-                      className="p-2 bg-red-500 text-white rounded"
+                      className="p-2 bg-red-500 text-white rounded hover:opacity-80"
                     >
                       <Trash2 size={16} />
                     </button>
