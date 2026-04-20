@@ -1,6 +1,12 @@
-<h1 className="text-6xl text-blue-600 font-bold">
-  TESTE TAILWIND
-</h1>
+return (
+  <div>
+    <h1 className="text-6xl text-blue-600 font-bold">
+      TESTE TAILWIND
+    </h1>
+
+    {/* resto do seu código */}
+  </div>
+);
 import React, { useState } from "react";
 import { Package, Plus, Trash2, Pencil } from "lucide-react";
 
