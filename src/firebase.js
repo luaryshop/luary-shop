@@ -1,15 +1,40 @@
-import { initializeApp } from "firebase/app";
-import { getDatabase } from "firebase/database";
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
+// As credenciais NUNCA ficam hardcoded no código-fonte.
+// Elas vêm do arquivo .env (veja .env.example) e são injetadas pelo Vite em build time.
+// Isso permite que o repositório seja público no GitHub sem vazar as chaves do projeto.
 const firebaseConfig = {
-  apiKey: "AIzaSyD62Yef2ggoAFSc-qKPlBTaRPRn20D91ug",
-  authDomain: "luary-shop.firebaseapp.com",
-  databaseURL: "https://luary-shop-default-rtdb.firebaseio.com",
-  projectId: "luary-shop",
-  storageBucket: "luary-shop.firebasestorage.app",
-  messagingSenderId: "266203283836",
-  appId: "1:266203283836:web:8d969c1379f82abda0a4f9"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-const app = initializeApp(firebaseConfig);
-export const db = getDatabase(app);
+const requiredKeys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'appId'];
+const missingKeys = requiredKeys.filter((k) => !firebaseConfig[k]);
+
+export const firebaseConfigError =
+  missingKeys.length > 0
+    ? 'Configuração do Firebase incompleta. Verifique se o arquivo .env existe e contém todas as chaves VITE_FIREBASE_* (veja .env.example).'
+    : null;
+
+// Namespace lógico usado para separar os dados no Firestore
+// (útil se você quiser rodar ambientes de teste e produção no mesmo projeto Firebase).
+export const appId = import.meta.env.VITE_APP_NAMESPACE || 'LuaryShop';
+
+let app, auth, db, storage;
+
+if (!firebaseConfigError) {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+  storage = getStorage(app);
+}
+
+export { app, auth, db, storage };
