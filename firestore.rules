@@ -1,0 +1,26 @@
+rules_version = '2';
+
+// Regras de segurança do Firestore para o Luary Shop.
+// Publique com: firebase deploy --only firestore:rules
+//
+// Modelo atual: qualquer usuário AUTENTICADO (mesmo anônimo) pode ler e escrever
+// os dados do namespace do app. Isso é adequado para uso interno/pessoal do lojista,
+// mas significa que qualquer pessoa que abrir o site (e logar anonimamente,
+// o que acontece automaticamente) terá acesso total aos dados.
+//
+// Se este ERP for usado por mais de uma pessoa ou tiver dados sensíveis,
+// troque a autenticação anônima por e-mail/senha e restrinja o acesso
+// a uma lista de UIDs autorizados (veja o exemplo comentado no final do arquivo).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /artifacts/{appId}/public/data/{collection}/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // --- EXEMPLO MAIS RESTRITIVO (recomendado para produção real) ---
+    // match /artifacts/{appId}/public/data/{collection}/{docId} {
+    //   allow read, write: if request.auth != null &&
+    //     request.auth.uid in ['UID_DO_DONO_1', 'UID_DO_FUNCIONARIO_1'];
+    // }
+  }
+}
