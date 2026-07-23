@@ -15,6 +15,14 @@ import {
 } from 'lucide-react';
 import { auth, db, storage, appId, firebaseConfigError } from './firebase.js';
 
+// --- FORMATAÇÃO NO PADRÃO BRASILEIRO (vírgula decimal, ponto de milhar) ---
+// Usar sempre no lugar de .toFixed() para exibir valores em R$, peso (g) ou percentuais.
+const formatBRL = (valor) =>
+  Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const formatNumBR = (valor, casas = 2) =>
+  Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+
 const App = () => {
   // --- ESTADOS DE SESSÃO E CONEXÃO ---
   const [user, setUser] = useState(null);
@@ -489,10 +497,10 @@ const App = () => {
         startY: 38,
         head: [['Item', 'Valor (R$)']],
         body: [
-          ['Receita Bruta', metricasDRE.receitaBruta.toFixed(2)],
-          ['Despesas', metricasDRE.despesas.toFixed(2)],
-          ['Lucro Líquido', metricasDRE.lucroLiquido.toFixed(2)],
-          ['Estoque Ativo (Custo)', metricasDRE.custoEstoqueAtivo.toFixed(2)]
+          ['Receita Bruta', formatBRL(metricasDRE.receitaBruta)],
+          ['Despesas', formatBRL(metricasDRE.despesas)],
+          ['Lucro Líquido', formatBRL(metricasDRE.lucroLiquido)],
+          ['Estoque Ativo (Custo)', formatBRL(metricasDRE.custoEstoqueAtivo)]
         ]
       });
 
@@ -505,7 +513,7 @@ const App = () => {
         body: sortedProdutos.map(p => [
           p.sku || '-',
           p.nome || '-',
-          `R$ ${Number(p.custoBase || 0).toFixed(2)}`,
+          `R$ ${formatBRL(p.custoBase)}`,
           p.saldo || 0,
           p.status || 'Ativo'
         ])
@@ -751,7 +759,7 @@ const App = () => {
               <div className="bg-white p-6 rounded-[2rem] border shadow-sm flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase">Faturamento Bruto</p>
-                  <p className="text-2xl font-black text-slate-800 mt-1">R$ {metricasDRE.receitaBruta.toFixed(2)}</p>
+                  <p className="text-2xl font-black text-slate-800 mt-1">R$ {formatBRL(metricasDRE.receitaBruta)}</p>
                 </div>
                 <div className="bg-emerald-50 text-emerald-600 p-3 rounded-2xl"><ArrowUpRight size={24}/></div>
               </div>
@@ -759,7 +767,7 @@ const App = () => {
               <div className="bg-white p-6 rounded-[2rem] border shadow-sm flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase">Lucro Líquido</p>
-                  <p className="text-2xl font-black text-slate-800 mt-1">R$ {metricasDRE.lucroLiquido.toFixed(2)}</p>
+                  <p className="text-2xl font-black text-slate-800 mt-1">R$ {formatBRL(metricasDRE.lucroLiquido)}</p>
                 </div>
                 <div className="bg-indigo-50 text-indigo-600 p-3 rounded-2xl"><Coins size={24}/></div>
               </div>
@@ -775,7 +783,7 @@ const App = () => {
               <div className="bg-white p-6 rounded-[2rem] border shadow-sm flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase">Ativo em Estoque (Metal)</p>
-                  <p className="text-2xl font-black text-slate-800 mt-1">R$ {metricasDRE.custoEstoqueAtivo.toFixed(2)}</p>
+                  <p className="text-2xl font-black text-slate-800 mt-1">R$ {formatBRL(metricasDRE.custoEstoqueAtivo)}</p>
                 </div>
                 <div className="bg-blue-50 text-blue-600 p-3 rounded-2xl"><Database size={24}/></div>
               </div>
@@ -798,7 +806,7 @@ const App = () => {
                   <div>
                     <div className="flex justify-between text-xs font-bold text-slate-500 mb-1">
                       <span>PROGRESSO DA META MENSAL</span>
-                      <span>{((metricasDRE.receitaBruta / (metaFaturamento || 1)) * 100).toFixed(1)}%</span>
+                      <span>{formatNumBR(((metricasDRE.receitaBruta / (metaFaturamento || 1)) * 100), 1)}%</span>
                     </div>
                     <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
                       <div className="bg-indigo-600 h-full transition-all" style={{ width: `${Math.min(100, (metricasDRE.receitaBruta / (metaFaturamento || 1)) * 100)}%` }}></div>
@@ -808,11 +816,11 @@ const App = () => {
                   <div className="grid grid-cols-2 gap-4 pt-2">
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                       <p className="text-[10px] font-black text-slate-400">RESTANTE PARA A META</p>
-                      <p className="text-lg font-black text-slate-700">R$ {Math.max(0, metaFaturamento - metricasDRE.receitaBruta).toFixed(2)}</p>
+                      <p className="text-lg font-black text-slate-700">R$ {formatBRL(Math.max(0, metaFaturamento - metricasDRE.receitaBruta))}</p>
                     </div>
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                       <p className="text-[10px] font-black text-slate-400">SUGESTÃO DE META DIÁRIA</p>
-                      <p className="text-lg font-black text-slate-700">R$ {(metaFaturamento / 30).toFixed(2)}</p>
+                      <p className="text-lg font-black text-slate-700">R$ {formatBRL((metaFaturamento / 30))}</p>
                     </div>
                   </div>
                 </div>
@@ -878,15 +886,15 @@ const App = () => {
                             resMargem.viabilidade === 'Amarelo' ? 'bg-amber-50 text-amber-600 border-amber-100' : 
                             'bg-red-50 text-red-500 border-red-100'
                           }`}>
-                            {resMargem.margemReal.toFixed(1)}% Margem
+                            {formatNumBR(resMargem.margemReal, 1)}% Margem
                           </span>
                         </div>
 
                         <div className="space-y-2 text-xs">
-                          <div className="flex justify-between"><span className="text-slate-400 font-bold">PREÇO RECOMENDADO:</span><span className="font-black text-slate-800">R$ {resMargem.precoVenda.toFixed(2)}</span></div>
-                          <div className="flex justify-between"><span className="text-slate-400 font-bold">PREÇO PSICOLÓGICO:</span><span className="font-black text-indigo-600">R$ {resPsicologico.precoVenda.toFixed(2)}</span></div>
-                          <div className="flex justify-between"><span className="text-slate-400 font-bold">MÍNIMO COMPETITIVO:</span><span className="font-black text-slate-600">R$ {resCompetitivo.precoVenda.toFixed(2)}</span></div>
-                          <div className="flex justify-between border-t border-dashed border-slate-200 pt-2"><span className="text-slate-500 font-black">LUCRO ESTIMADO:</span><span className="font-black text-emerald-600">R$ {resMargem.lucro.toFixed(2)}</span></div>
+                          <div className="flex justify-between"><span className="text-slate-400 font-bold">PREÇO RECOMENDADO:</span><span className="font-black text-slate-800">R$ {formatBRL(resMargem.precoVenda)}</span></div>
+                          <div className="flex justify-between"><span className="text-slate-400 font-bold">PREÇO PSICOLÓGICO:</span><span className="font-black text-indigo-600">R$ {formatBRL(resPsicologico.precoVenda)}</span></div>
+                          <div className="flex justify-between"><span className="text-slate-400 font-bold">MÍNIMO COMPETITIVO:</span><span className="font-black text-slate-600">R$ {formatBRL(resCompetitivo.precoVenda)}</span></div>
+                          <div className="flex justify-between border-t border-dashed border-slate-200 pt-2"><span className="text-slate-500 font-black">LUCRO ESTIMADO:</span><span className="font-black text-emerald-600">R$ {formatBRL(resMargem.lucro)}</span></div>
                         </div>
                       </div>
                     );
@@ -1001,7 +1009,7 @@ const App = () => {
                           return p ? (
                             <div key={pid} className="flex justify-between text-xs font-bold text-slate-600">
                               <span>- {p.nome}</span>
-                              <span>R$ {p.custoBase?.toFixed(2)}</span>
+                              <span>R$ {formatBRL(p.custoBase)}</span>
                             </div>
                           ) : null;
                         })}
@@ -1010,11 +1018,11 @@ const App = () => {
                       <div className="grid grid-cols-2 gap-4 pt-2">
                         <div className="bg-white p-3 rounded-xl border text-center">
                           <p className="text-[8px] font-bold text-slate-400 uppercase">Custo Total Base</p>
-                          <p className="text-base font-black text-slate-700">R$ {Number(kit.custoBase || 0).toFixed(2)}</p>
+                          <p className="text-base font-black text-slate-700">R$ {formatBRL(Number(kit.custoBase || 0))}</p>
                         </div>
                         <div className="bg-white p-3 rounded-xl border text-center">
                           <p className="text-[8px] font-bold text-slate-400 uppercase">Peso Acumulado</p>
-                          <p className="text-base font-black text-slate-700">{Number(kit.pesoBase || 0).toFixed(2)}g</p>
+                          <p className="text-base font-black text-slate-700">{formatNumBR(Number(kit.pesoBase || 0))}g</p>
                         </div>
                       </div>
                     </div>
@@ -1061,7 +1069,7 @@ const App = () => {
                         <div className="font-black text-slate-800 text-base">{ins.nome}</div>
                         <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{ins.codigoInterno || 'Sem Código'}</div>
                       </td>
-                      <td className="p-6 font-bold text-slate-700">R$ {Number(ins.custo || 0).toFixed(2)}</td>
+                      <td className="p-6 font-bold text-slate-700">R$ {formatBRL(Number(ins.custo || 0))}</td>
                       <td className="p-6">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase ${Number(ins.saldo || 0) < Number(ins.minimo || 5) ? 'bg-red-50 text-red-500' : 'bg-slate-100 text-slate-700'}`}>
                           {ins.saldo || 0} un
@@ -1121,7 +1129,7 @@ const App = () => {
 
                   <div className="pt-2 border-t border-dashed">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Custo Real por Grama</p>
-                    <p className="text-3xl font-black text-slate-800">R$ {Number(b.precoPorGrama || 0).toFixed(2)}/g</p>
+                    <p className="text-3xl font-black text-slate-800">R$ {formatBRL(Number(b.precoPorGrama || 0))}/g</p>
                   </div>
                 </div>
               ))}
@@ -1389,9 +1397,9 @@ const App = () => {
               <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Demonstrativo do Resultado do Exercício (DRE)</h3>
               
               <div className="divide-y divide-slate-100 font-bold text-sm">
-                <div className="flex justify-between py-3 text-slate-700"><span className="uppercase">(+) Receita Bruta de Vendas</span><span className="font-black text-slate-800">R$ {metricasDRE.receitaBruta.toFixed(2)}</span></div>
-                <div className="flex justify-between py-3 text-red-500"><span className="uppercase">(-) Custos Operacionais e Despesas</span><span className="font-black">R$ {metricasDRE.despesas.toFixed(2)}</span></div>
-                <div className="flex justify-between py-4 text-lg border-t-2 border-slate-200"><span className="font-black uppercase text-slate-800">(=) Resultado Líquido do Exercício</span><span className={`font-black ${metricasDRE.lucroLiquido >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>R$ {metricasDRE.lucroLiquido.toFixed(2)}</span></div>
+                <div className="flex justify-between py-3 text-slate-700"><span className="uppercase">(+) Receita Bruta de Vendas</span><span className="font-black text-slate-800">R$ {formatBRL(metricasDRE.receitaBruta)}</span></div>
+                <div className="flex justify-between py-3 text-red-500"><span className="uppercase">(-) Custos Operacionais e Despesas</span><span className="font-black">R$ {formatBRL(metricasDRE.despesas)}</span></div>
+                <div className="flex justify-between py-4 text-lg border-t-2 border-slate-200"><span className="font-black uppercase text-slate-800">(=) Resultado Líquido do Exercício</span><span className={`font-black ${metricasDRE.lucroLiquido >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>R$ {formatBRL(metricasDRE.lucroLiquido)}</span></div>
               </div>
             </div>
 
@@ -1416,7 +1424,7 @@ const App = () => {
                           {trans.tipo}
                         </span>
                       </td>
-                      <td className="p-6 font-bold">R$ {Number(trans.valor || 0).toFixed(2)}</td>
+                      <td className="p-6 font-bold">R$ {formatBRL(Number(trans.valor || 0))}</td>
                       <td className="p-6 font-bold text-slate-400">{trans.data}</td>
                       <td className="p-6 text-right">
                         <button onClick={() => handleDelete('financeiro', trans.id, `o lançamento "${trans.descricao}"`)} className="p-3 bg-slate-100 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all opacity-0 group-hover:opacity-100"><Trash2 size={14}/></button>
@@ -1469,7 +1477,7 @@ const App = () => {
                         R$ {(() => {
                           const mkt = marketplaces[0] || { comissao: 10 };
                           const res = calcularPrecificacaoAvancada(liveProduct, mkt, 'margem');
-                          return res ? res.precoVenda.toFixed(2) : '159.90';
+                          return res ? formatBRL(res.precoVenda) : '159,90';
                         })()}
                       </p>
                     </div>
