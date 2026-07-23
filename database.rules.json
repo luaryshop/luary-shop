@@ -1,0 +1,42 @@
+{
+  "rules": {
+    "luary": {
+      "luary_banhos": {
+        ".read": true,
+        ".write": "auth != null"
+      },
+      "luary_insumos": {
+        ".read": true,
+        ".write": "auth != null"
+      },
+      "luary_marketplaces": {
+        ".read": true,
+        ".write": "auth != null"
+      },
+      "luary_produtos": {
+        ".read": true,
+        ".write": "auth != null"
+      },
+      "luary_kits": {
+        ".read": true,
+        ".write": "auth != null"
+      },
+      "luary_fornecedores": {
+        ".read": true,
+        ".write": "auth != null"
+      },
+      "luary_historicoEstoque": {
+        ".read": true,
+        ".write": "auth != null"
+      },
+      "luary_financeiro": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

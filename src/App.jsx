@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { collection, doc, setDoc, onSnapshot, deleteDoc, addDoc } from 'firebase/firestore';
-import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { ref, set, onValue, remove } from 'firebase/database';
+import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storage';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -77,19 +77,23 @@ const App = () => {
     return unsub;
   }, []);
 
-  // --- SINCRONIZAÇÃO EM TEMPO REAL (FIRESTORE) ---
+  // --- SINCRONIZAÇÃO EM TEMPO REAL (REALTIME DATABASE) ---
   useEffect(() => {
     if (!user) return;
-    const getPath = (col) => collection(db, "artifacts", appId, "public", "data", col);
-    
-    const unsubM = onSnapshot(getPath('marketplaces'), (s) => setMarketplaces(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const unsubI = onSnapshot(getPath('insumos'), (s) => setInsumos(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const unsubB = onSnapshot(getPath('banhos'), (s) => setBanhos(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const unsubP = onSnapshot(getPath('produtos'), (s) => setProdutos(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const unsubF = onSnapshot(getPath('fornecedores'), (s) => setFornecedores(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const unsubK = onSnapshot(getPath('kits'), (s) => setKits(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const unsubH = onSnapshot(getPath('historicoEstoque'), (s) => setHistoricoEstoque(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const unsubFin = onSnapshot(getPath('financeiro'), (s) => setFinanceiro(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const getPath = (col) => ref(db, `${appId}/${appId}_${col}`);
+    const toArray = (snapshotVal) => {
+      const val = snapshotVal || {};
+      return Object.entries(val).map(([id, d]) => ({ id, ...d }));
+    };
+
+    const unsubM = onValue(getPath('marketplaces'), (s) => setMarketplaces(toArray(s.val())));
+    const unsubI = onValue(getPath('insumos'), (s) => setInsumos(toArray(s.val())));
+    const unsubB = onValue(getPath('banhos'), (s) => setBanhos(toArray(s.val())));
+    const unsubP = onValue(getPath('produtos'), (s) => setProdutos(toArray(s.val())));
+    const unsubF = onValue(getPath('fornecedores'), (s) => setFornecedores(toArray(s.val())));
+    const unsubK = onValue(getPath('kits'), (s) => setKits(toArray(s.val())));
+    const unsubH = onValue(getPath('historicoEstoque'), (s) => setHistoricoEstoque(toArray(s.val())));
+    const unsubFin = onValue(getPath('financeiro'), (s) => setFinanceiro(toArray(s.val())));
 
     return () => { 
       unsubM(); unsubI(); unsubB(); unsubP(); unsubF(); unsubK(); unsubH(); unsubFin();
@@ -138,8 +142,8 @@ const App = () => {
     // Upload de Imagem para Firebase Storage
     if (imagePreview && imagePreview.startsWith('data:image')) {
       try {
-        const storageRef = ref(storage, `${appId}/produtos/${id}.jpg`);
-        const uploadResult = await uploadString(storageRef, imagePreview, 'data_url');
+        const imgRef = storageRef(storage, `${appId}/produtos/${id}.jpg`);
+        const uploadResult = await uploadString(imgRef, imagePreview, 'data_url');
         finalImageUrl = await getDownloadURL(uploadResult.ref);
       } catch (error) {
         console.error("Erro Firebase Storage:", error);
@@ -228,12 +232,12 @@ const App = () => {
     const colName = modalType === 'marketplace' ? 'marketplaces' : modalType + 's';
     
     try {
-      await setDoc(doc(db, "artifacts", appId, "public", "data", colName, id), data);
+      await set(ref(db, `${appId}/${appId}_${colName}/${id}`), data);
       setIsModalOpen(false);
       setEditingItem(null);
       setImagePreview('');
     } catch (err) {
-      console.error("Erro ao salvar no Firestore:", err);
+      console.error("Erro ao salvar no Realtime Database:", err);
     } finally {
       setIsUploading(false);
     }
@@ -244,7 +248,7 @@ const App = () => {
     const confirmado = window.confirm(`Tem certeza que deseja excluir ${label}? Esta ação não pode ser desfeita.`);
     if (!confirmado) return;
     try {
-      await deleteDoc(doc(db, "artifacts", appId, "public", "data", colName, id));
+      await remove(ref(db, `${appId}/${appId}_${colName}/${id}`));
     } catch (err) {
       console.error(`Erro ao excluir de ${colName}:`, err);
       alert('Não foi possível excluir. Tente novamente.');
@@ -254,7 +258,8 @@ const App = () => {
   // --- HISTÓRICO DE ESTOQUE ---
   const registrarMovimentacaoEstoque = async (itemID, tipo, quantidade, motivo) => {
     try {
-      await addDoc(collection(db, "artifacts", appId, "public", "data", "historicoEstoque"), {
+      const novoId = crypto.randomUUID();
+      await set(ref(db, `${appId}/${appId}_historicoEstoque/${novoId}`), {
         itemId: itemID,
         tipo, // 'Entrada' ou 'Saída'
         quantidade: Number(quantidade),
@@ -286,7 +291,7 @@ const App = () => {
     }
 
     try {
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "produtos", idProd), {
+      await set(ref(db, `${appId}/${appId}_produtos/${idProd}`), {
         ...targetProd,
         saldo: novoSaldo
       });
@@ -521,7 +526,7 @@ const App = () => {
 
     try {
       // 1. Fornecedor
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "fornecedores", demoFornecedorId), {
+      await set(ref(db, `${appId}/${appId}_fornecedores/${demoFornecedorId}`), {
         id: demoFornecedorId,
         nome: "Brilho Imperial Metais Atacado",
         contato: "Carlos Henrique",
@@ -534,7 +539,7 @@ const App = () => {
       });
 
       // 2. Banho
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "banhos", demoBanhoId), {
+      await set(ref(db, `${appId}/${appId}_banhos/${demoBanhoId}`), {
         id: demoBanhoId,
         nome: "Ouro 18k Premium - 10 Milésimos",
         metal: "Ouro",
@@ -549,7 +554,7 @@ const App = () => {
       });
 
       // 3. Insumo
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "insumos", demoInsumoId), {
+      await set(ref(db, `${appId}/${appId}_insumos/${demoInsumoId}`), {
         id: demoInsumoId,
         nome: "Embalagem Luxo Veludo Preta",
         custo: 4.5,
@@ -563,7 +568,7 @@ const App = () => {
       });
 
       // 4. Marketplace
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "marketplaces", demoMktId), {
+      await set(ref(db, `${appId}/${appId}_marketplaces/${demoMktId}`), {
         id: demoMktId,
         nome: "Mercado Livre Premium",
         comissao: 16.5,
@@ -587,7 +592,7 @@ const App = () => {
       });
 
       // 5. Produto
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "produtos", demoProdId), {
+      await set(ref(db, `${appId}/${appId}_produtos/${demoProdId}`), {
         id: demoProdId,
         sku: "AN-001",
         nome: "Anel Solitário Imperial",
@@ -604,7 +609,7 @@ const App = () => {
       });
 
       // 6. Financeiro Demo
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "financeiro", crypto.randomUUID()), {
+      await set(ref(db, `${appId}/${appId}_financeiro/${crypto.randomUUID()}`), {
         id: crypto.randomUUID(),
         descricao: "Venda Anel Solitário ML",
         tipo: "Receita",
@@ -612,7 +617,7 @@ const App = () => {
         data: new Date().toISOString().split('T')[0]
       });
 
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "financeiro", crypto.randomUUID()), {
+      await set(ref(db, `${appId}/${appId}_financeiro/${crypto.randomUUID()}`), {
         id: crypto.randomUUID(),
         descricao: "Compra insumos de embalagem",
         tipo: "Despesa",
