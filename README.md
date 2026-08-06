@@ -7,7 +7,7 @@ ERP comercial focado em precificação de semijoias: produtos, kits, insumos, ba
 Este projeto veio de um único arquivo `.tsx` pensado para rodar num ambiente de preview (com a chave do Firebase exposta no código). Antes de publicar no GitHub, os seguintes pontos foram corrigidos:
 
 - **Credenciais do Firebase removidas do código-fonte.** Agora vêm de variáveis de ambiente (`.env`, que fica fora do Git). Veja `.env.example`.
-- **Regras de segurança do Firestore e Storage** (`firestore.rules`, `storage.rules`) para exigir autenticação antes de ler/escrever dados.
+- **Regras de segurança do Realtime Database e Storage** (`database.rules.json`, `storage.rules`) para exigir autenticação antes de ler/escrever dados.
 - **Exclusão de itens agora pede confirmação** (produtos, kits, insumos, banhos, canais, fornecedores, lançamentos financeiros) — antes apagava direto no clique.
 - **Exportação real de Excel e PDF** no Dashboard — antes era só um alerta fingindo gerar o arquivo.
 - **Validação de SKU duplicado** ao cadastrar produtos e kits.
@@ -19,6 +19,13 @@ Este projeto veio de um único arquivo `.tsx` pensado para rodar num ambiente de
 - O **Financeiro/DRE** soma o que for lançado manualmente; não puxa vendas automaticamente dos marketplaces.
 - A autenticação é **anônima** (qualquer pessoa que abrir o link vira "usuário" com acesso total aos dados). Isso é aceitável para uso pessoal/interno, mas veja a seção de segurança abaixo se for usar com equipe ou dados sensíveis.
 
+## Atualização — cadastro e SEO universais (qualquer categoria, não só joias)
+
+- **Cadastro de produto ficou genérico**: além dos campos de joia (peso/banho, que continuam existindo e agora são opcionais), tem Marca, Cor, Medidas e uma lista dinâmica de **Atributos Personalizados** (chave/valor) — funciona pra roupa, eletrônico, casa, qualquer nicho.
+- **Gerador de conteúdo virou motor de regras por marketplace** (`src/data/marketplaces.js` + `src/utils/contentGenerator.js`): usa só o que o produto realmente tem preenchido, respeita o limite de caracteres real de cada canal (Mercado Livre, Shopee, Amazon, TikTok Shop) e a estrutura/tom que cada um exige.
+- **Precificação**: adicionado o "Preço de Equilíbrio" (0% de margem) no comparativo entre canais, mostrando o piso absoluto de cada marketplace.
+- **Removida a configuração órfã do Firestore** (`firestore.rules`) — o projeto sempre usou Realtime Database de fato; a documentação e as regras agora refletem isso corretamente.
+
 ## Pré-requisitos
 
 - [Node.js](https://nodejs.org/) 18 ou superior
@@ -28,17 +35,17 @@ Este projeto veio de um único arquivo `.tsx` pensado para rodar num ambiente de
 
 1. Crie um projeto em [console.firebase.google.com](https://console.firebase.google.com/).
 2. Em **Build > Authentication > Sign-in method**, ative o provedor **Anônimo**.
-3. Em **Build > Firestore Database**, crie o banco (modo produção).
+3. Em **Build > Realtime Database**, crie o banco (modo produção, mesma região que preferir).
 4. Em **Build > Storage**, ative o Storage (para as fotos dos produtos).
-5. Em **Configurações do projeto > Seus apps**, crie um app da Web e copie as credenciais (`apiKey`, `authDomain` etc.).
+5. Em **Configurações do projeto > Seus apps**, crie um app da Web e copie as credenciais (`apiKey`, `authDomain`, `databaseURL` etc.).
 6. Publique as regras de segurança inclusas neste repositório:
    ```bash
    npm install -g firebase-tools
    firebase login
-   firebase init firestore storage   # aponte para o projeto que você criou
-   firebase deploy --only firestore:rules,storage
+   firebase init database storage   # aponte para o projeto que você criou
+   firebase deploy --only database,storage
    ```
-   (ou cole o conteúdo de `firestore.rules` e `storage.rules` direto no console do Firebase, nas abas "Regras")
+   (ou cole o conteúdo de `database.rules.json` e `storage.rules` direto no console do Firebase, nas abas "Regras")
 
 ## 2. Rodar localmente
 
@@ -97,8 +104,8 @@ firebase deploy --only hosting
 
 ## Segurança — leia antes de usar com dados reais
 
-- As regras atuais (`firestore.rules`) liberam leitura/escrita para **qualquer usuário autenticado**, e a autenticação é anônima — ou seja, qualquer pessoa com o link do site tem acesso total aos seus dados. Isso é intencional para simplicidade de uso pessoal.
-- Se você for usar com funcionários ou dados sensíveis, troque para autenticação por e-mail/senha e restrinja as regras a uma lista de UIDs autorizados (há um exemplo comentado dentro de `firestore.rules`).
+- As regras atuais (`database.rules.json`) liberam leitura pública e escrita para **qualquer usuário autenticado**, e a autenticação é anônima — ou seja, qualquer pessoa com o link do site vira "usuário" e ganha acesso de escrita aos seus dados. Isso é intencional para simplicidade de uso pessoal.
+- Se você for usar com funcionários ou dados sensíveis, troque para autenticação por e-mail/senha e restrinja as regras de escrita a uma lista de UIDs autorizados dentro de `database.rules.json` (troque `"auth != null"` por uma checagem de UID específico).
 - A `apiKey` do Firebase que vai no `.env` **não é secreta por natureza** (ela é enviada ao navegador de qualquer forma) — quem protege seus dados são as **regras de segurança**, não a chave em si. Ainda assim, mantenha-a fora do Git por boas práticas e para evitar que outras pessoas usem sua cota do projeto.
 
 ## Estrutura do projeto
@@ -106,10 +113,14 @@ firebase deploy --only hosting
 ```
 src/
   App.jsx        # aplicação principal (todos os módulos do ERP)
+  data/
+    marketplaces.js     # regras reais de cada marketplace (limite de caracteres, tom, estrutura)
+  utils/
+    contentGenerator.js # gerador universal de título/descrição/tags por marketplace
   firebase.js     # inicialização do Firebase a partir das variáveis de ambiente
   main.jsx        # entrypoint do React
   index.css       # Tailwind
-firestore.rules   # regras de segurança do banco
+database.rules.json  # regras de segurança do Realtime Database
 storage.rules     # regras de segurança do storage (fotos)
 .env.example      # modelo de variáveis de ambiente
 ```
