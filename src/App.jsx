@@ -125,6 +125,7 @@ const App = () => {
   const [modalType, setModalType] = useState('produto'); // 'produto', 'insumo', 'banho', 'marketplace', 'fornecedor', 'kit', 'financeiro', 'estoque'
   const [editingItem, setEditingItem] = useState(null);
   const [atributosForm, setAtributosForm] = useState([{ chave: '', valor: '' }]);
+  const [custosAdicionaisForm, setCustosAdicionaisForm] = useState([{ nome: '', valor: '' }]);
   const [importPreview, setImportPreview] = useState(null);
   const [isImporting, setIsImporting] = useState(false);
   const fileImportRef = useRef(null);
@@ -315,6 +316,10 @@ const App = () => {
       }
     }
 
+    if (modalType === 'marketplace') {
+      data.custosAdicionais = custosAdicionaisForm.filter(c => c.nome.trim() && Number(c.valor) > 0);
+    }
+
     if (modalType === 'banho') {
       // Cálculo do Custo Real por Grama com base na cotação e taxas técnicas
       const cotacao = Number(rawData.cotacao) || 0;
@@ -442,10 +447,12 @@ const App = () => {
       Number(mkt.taxaDevolucao || 0)
     ) / 100;
 
+    const custosAdicionaisTotal = (mkt.custosAdicionais || []).reduce((acc, c) => acc + (Number(c.valor) || 0), 0);
+
     const custosFixos = (
       Number(mkt.taxaFixa || 0) + Number(mkt.freteMedia || 0) + Number(mkt.fulfillment || 0) + 
       Number(mkt.mensalidade || 0) + Number(mkt.custoERP || 0) + Number(mkt.custoHub || 0) + 
-      Number(mkt.taxaAnuncio || 0)
+      Number(mkt.taxaAnuncio || 0) + custosAdicionaisTotal
     );
 
     let precoVenda = 0;
@@ -1457,7 +1464,7 @@ const App = () => {
                 <p className="text-slate-400 font-bold text-sm uppercase">TikTok Shop, Shopee, Mercado Livre, Amazon e site próprio</p>
               </div>
               <button 
-                onClick={() => { setModalType('marketplace'); setEditingItem(null); setIsModalOpen(true); }}
+                onClick={() => { setModalType('marketplace'); setEditingItem(null); setCustosAdicionaisForm([{ nome: '', valor: '' }]); setIsModalOpen(true); }}
                 className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg hover:scale-105 transition-all uppercase text-xs flex items-center gap-2"
               >
                 <Plus size={16}/> Novo Canal
@@ -1473,7 +1480,7 @@ const App = () => {
                       <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">Imposto: {mkt.imposto || 0}%</p>
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={() => { setModalType('marketplace'); setEditingItem(mkt); setIsModalOpen(true); }} className="text-indigo-600 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"><Edit2 size={14}/></button>
+                      <button onClick={() => { setModalType('marketplace'); setEditingItem(mkt); setCustosAdicionaisForm(mkt.custosAdicionais && mkt.custosAdicionais.length ? mkt.custosAdicionais : [{ nome: '', valor: '' }]); setIsModalOpen(true); }} className="text-indigo-600 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"><Edit2 size={14}/></button>
                       <button onClick={() => handleDelete('marketplaces', mkt.id, `o canal "${mkt.nome}"`)} className="text-red-500 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"><Trash2 size={14}/></button>
                     </div>
                   </div>
@@ -1483,6 +1490,23 @@ const App = () => {
                     <div className="bg-slate-50 p-2.5 rounded-xl"><p className="text-[8px] font-bold text-slate-400 uppercase">Frete Médio</p><p className="font-black text-slate-800">R$ {mkt.freteMedia || 0}</p></div>
                     <div className="bg-slate-50 p-2.5 rounded-xl"><p className="text-[8px] font-bold text-slate-400 uppercase">Taxa Fixa</p><p className="font-black text-slate-800">R$ {mkt.taxaFixa || 0}</p></div>
                   </div>
+
+                  {(() => {
+                    const totalPerc = ['comissao','imposto','ads','difal','cashback','cupom','taxaPagamento','antecipacao','fraudeMedia','perdaMediaReembolso','taxaDevolucao']
+                      .reduce((acc, k) => acc + (Number(mkt[k]) || 0), 0);
+                    const totalFixo = ['taxaFixa','freteMedia','fulfillment','mensalidade','custoERP','custoHub','taxaAnuncio']
+                      .reduce((acc, k) => acc + (Number(mkt[k]) || 0), 0);
+                    const totalAdicionais = (mkt.custosAdicionais || []).reduce((acc, c) => acc + (Number(c.valor) || 0), 0);
+                    return (
+                      <div className="border-t border-dashed border-slate-200 pt-3 space-y-1.5">
+                        <div className="flex justify-between text-[10px] font-bold"><span className="text-slate-400 uppercase">Total de taxas %</span><span className="text-rose-500">{totalPerc.toFixed(2)}%</span></div>
+                        <div className="flex justify-between text-[10px] font-bold"><span className="text-slate-400 uppercase">Total de custos fixos</span><span className="text-rose-500">R$ {totalFixo.toFixed(2)}</span></div>
+                        {mkt.custosAdicionais && mkt.custosAdicionais.length > 0 && (
+                          <div className="flex justify-between text-[10px] font-bold"><span className="text-slate-400 uppercase">+ {mkt.custosAdicionais.length} custo(s) extra</span><span className="text-rose-500">R$ {totalAdicionais.toFixed(2)}</span></div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
@@ -2097,25 +2121,100 @@ const App = () => {
                     <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Nome do Canal</label>
                     <input name="nome" placeholder="Ex: Shopee Atacado" defaultValue={editingItem?.nome} required className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Comissão Canal (%)</label>
-                      <input name="comissao" type="number" step="0.01" placeholder="0.00" defaultValue={editingItem?.comissao} className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" />
+
+                  {/* TAXAS PERCENTUAIS */}
+                  <div className="space-y-4 border border-slate-200 rounded-[2rem] p-6 bg-white shadow-inner">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="bg-rose-100 text-rose-600 p-2 rounded-xl"><PieChart size={18}/></div>
+                      <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight">Taxas Percentuais (%)</h4>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Imposto Direto (%)</label>
-                      <input name="imposto" type="number" step="0.01" placeholder="0.00" defaultValue={editingItem?.imposto} className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" />
+                    <div className="grid grid-cols-2 gap-4">
+                      {[
+                        ['comissao', 'Comissão do Canal'],
+                        ['imposto', 'Imposto Direto'],
+                        ['ads', 'Ads / Publicidade'],
+                        ['difal', 'DIFAL'],
+                        ['cashback', 'Cashback'],
+                        ['cupom', 'Cupom (média)'],
+                        ['taxaPagamento', 'Taxa de Pagamento'],
+                        ['antecipacao', 'Antecipação de Recebível'],
+                        ['fraudeMedia', 'Fraude (média)'],
+                        ['perdaMediaReembolso', 'Perda / Reembolso (média)'],
+                        ['taxaDevolucao', 'Taxa de Devolução']
+                      ].map(([campo, label]) => (
+                        <div key={campo} className="space-y-2">
+                          <label className="text-[10px] font-black uppercase text-slate-400 ml-2">{label} (%)</label>
+                          <input name={campo} type="number" step="0.01" placeholder="0.00" defaultValue={editingItem?.[campo]} className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" />
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Frete Médio (R$)</label>
-                      <input name="freteMedia" type="number" step="0.01" placeholder="0.00" defaultValue={editingItem?.freteMedia} className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" />
+
+                  {/* CUSTOS FIXOS */}
+                  <div className="space-y-4 border border-slate-200 rounded-[2rem] p-6 bg-white shadow-inner">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="bg-blue-100 text-blue-600 p-2 rounded-xl"><DollarSign size={18}/></div>
+                      <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight">Custos Fixos por Venda (R$)</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {[
+                        ['taxaFixa', 'Taxa Fixa de Venda'],
+                        ['freteMedia', 'Frete Médio'],
+                        ['fulfillment', 'Fulfillment / Armazenagem'],
+                        ['mensalidade', 'Mensalidade do Canal (rateio)'],
+                        ['custoERP', 'Custo de ERP (rateio)'],
+                        ['custoHub', 'Custo de Hub de Integração'],
+                        ['taxaAnuncio', 'Taxa de Anúncio']
+                      ].map(([campo, label]) => (
+                        <div key={campo} className="space-y-2">
+                          <label className="text-[10px] font-black uppercase text-slate-400 ml-2">{label} (R$)</label>
+                          <input name={campo} type="number" step="0.01" placeholder="0.00" defaultValue={editingItem?.[campo]} className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* CUSTOS ADICIONAIS PERSONALIZADOS */}
+                  <div className="space-y-4 border border-slate-200 rounded-[2rem] p-6 bg-white shadow-inner">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="bg-amber-100 text-amber-600 p-2 rounded-xl"><Plus size={18}/></div>
+                      <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight">Custos Adicionais</h4>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase ml-auto">Qualquer taxa específica que não se encaixe acima</span>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Taxa Fixa Venda (R$)</label>
-                      <input name="taxaFixa" type="number" step="0.01" placeholder="0.00" defaultValue={editingItem?.taxaFixa} className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" />
+                      {custosAdicionaisForm.map((c, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            placeholder="Nome do custo (ex: Selo de Qualidade)"
+                            value={c.nome}
+                            onChange={(e) => {
+                              const novo = [...custosAdicionaisForm];
+                              novo[idx] = { ...novo[idx], nome: e.target.value };
+                              setCustosAdicionaisForm(novo);
+                            }}
+                            className="flex-1 bg-slate-50 p-3 rounded-xl font-bold border-none text-xs"
+                          />
+                          <input
+                            placeholder="Valor (R$)"
+                            type="number"
+                            step="0.01"
+                            value={c.valor}
+                            onChange={(e) => {
+                              const novo = [...custosAdicionaisForm];
+                              novo[idx] = { ...novo[idx], valor: e.target.value };
+                              setCustosAdicionaisForm(novo);
+                            }}
+                            className="w-32 bg-slate-50 p-3 rounded-xl font-bold border-none text-xs"
+                          />
+                          <button type="button" onClick={() => setCustosAdicionaisForm(custosAdicionaisForm.filter((_, i) => i !== idx))} className="text-rose-500 p-2 hover:bg-rose-50 rounded-lg transition-colors shrink-0">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
                     </div>
+                    <button type="button" onClick={() => setCustosAdicionaisForm([...custosAdicionaisForm, { nome: '', valor: '' }])} className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 px-4 py-2 rounded-xl hover:bg-indigo-100 transition-colors">
+                      + Adicionar Custo
+                    </button>
                   </div>
                 </div>
               )}
