@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { ref, set, onValue, remove } from 'firebase/database';
+import { ref, set, update, onValue, remove } from 'firebase/database';
 import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storage';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -14,6 +14,8 @@ import {
   Calendar, Info, ShoppingCart, ShoppingBag, ListPlus, Database, AlertTriangle
 } from 'lucide-react';
 import { auth, db, storage, appId, firebaseConfigError } from './firebase.js';
+import { gerarConteudoMultiMarketplace } from './utils/contentGenerator.js';
+import { MARKETPLACES_CONFIG, MARKETPLACES_LIST } from './data/marketplaces.js';
 
 // --- FORMATAÇÃO NO PADRÃO BRASILEIRO (vírgula decimal, ponto de milhar) ---
 // Usar sempre no lugar de .toFixed() para exibir valores em R$, peso (g) ou percentuais.
@@ -32,6 +34,10 @@ const App = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState('produto'); // 'produto', 'insumo', 'banho', 'marketplace', 'fornecedor', 'kit', 'financeiro', 'estoque'
   const [editingItem, setEditingItem] = useState(null);
+  const [atributosForm, setAtributosForm] = useState([{ chave: '', valor: '' }]);
+  const [importPreview, setImportPreview] = useState(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileImportRef = useRef(null);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [imagePreview, setImagePreview] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -193,7 +199,19 @@ const App = () => {
       data.insumosIds = formData.getAll('insumosIds') || [];
       if (!data.tipoMargem) data.tipoMargem = editingItem?.tipoMargem || 'perc';
       data.status = rawData.status || 'Ativo';
-      
+
+      // Campos universais (funcionam pra qualquer categoria, não só joias)
+      data.marca = rawData.marca || '';
+      data.cor = rawData.cor || '';
+      data.medidas = {
+        comprimento: rawData.medidaComprimento || '',
+        largura: rawData.medidaLargura || '',
+        altura: rawData.medidaAltura || ''
+      };
+      data.diferenciais = (rawData.diferenciais || '')
+        .split('\n').map(l => l.trim()).filter(Boolean);
+      data.atributos = atributosForm.filter(a => a.chave.trim() && a.valor.trim());
+
       // Lógica de estoque inicial para novo produto
       if (!editingItem) {
         const estoqueInicial = Number(rawData.estoqueInicial) || 0;
@@ -340,10 +358,10 @@ const App = () => {
     );
 
     let precoVenda = 0;
-    const metaMargem = valorConfig || Number(produto.margemAlvo || 0);
+    const metaMargem = modo === 'breakeven' ? 0 : (valorConfig || Number(produto.margemAlvo || 0));
 
-    // Motor de Precificação - 5 Modos
-    if (modo === 'margem') {
+    // Motor de Precificação - 6 Modos
+    if (modo === 'margem' || modo === 'breakeven') {
       const divisor = 1 - taxasPerc - (metaMargem / 100);
       precoVenda = divisor > 0 ? (custoProducao + custosFixos) / divisor : 0;
     } else if (modo === 'lucro') {
@@ -386,30 +404,49 @@ const App = () => {
     };
   }, [banhos, insumos]);
 
-  // --- GERADOR DE CONTEÚDO SEO PREMIUM ---
-  const handleGerarSEO = (nomeProd, skuProd) => {
+  // --- EXPORTAÇÃO EM MASSA DO CONTEÚDO GERADO (todos os produtos x todos os marketplaces) ---
+  const handleExportarConteudoMassa = () => {
+    if (produtos.length === 0) { alert('Nenhum produto cadastrado para gerar conteúdo.'); return; }
+
+    const linhas = [['SKU', 'Produto', 'Marketplace', 'Título', 'Caracteres', 'Limite', 'Descrição', 'Tags']];
+
+    produtos.forEach(p => {
+      const resultado = gerarConteudoMultiMarketplace(p);
+      MARKETPLACES_LIST.forEach(cfg => {
+        const r = resultado[cfg.id];
+        if (!r) return;
+        linhas.push([
+          p.sku || '',
+          p.nome || '',
+          cfg.nome,
+          r.titulo,
+          String(r.conformidade.tituloLen),
+          String(r.conformidade.tituloMax),
+          r.descricao,
+          r.tags.join('; ')
+        ]);
+      });
+    });
+
+    const csv = linhas.map(l => l.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `conteudo-marketplaces-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // --- GERADOR DE CONTEÚDO SEO PREMIUM (universal, por atributos reais do produto) ---
+  const handleGerarSEO = (produto) => {
+    if (!produto) return;
     setIsGeneratingSeo(true);
     setTimeout(() => {
-      const titulos = {
-        shopee: `${nomeProd.toUpperCase()} Semijoia Luxo Premium - SKU ${skuProd}`,
-        mercadoLivre: `${nomeProd} Original Banhado Ouro 18k Com Garantia`,
-        amazon: `${nomeProd} Classic Collection - Semijoia Fina de Alta Durabilidade`,
-        tiktok: `🔥 Alerta Trend! ${nomeProd} Luxuoso para seu visual diário ✨ #semijoia`
-      };
-      
-      const faq = [
-        { q: "A peça escurece?", a: "Não, nosso banho possui tecnologia antialérgica e camada de verniz protetor premium." },
-        { q: "Qual o prazo de envio?", a: "Despachamos em até 24 horas úteis com rastreamento completo." }
-      ];
-
-      setSeoResult({
-        titulos,
-        descricao: `Descubra a elegância incomparável do(a) ${nomeProd}. Produzido sob os mais rigorosos padrões de qualidade, esta peça une o design contemporâneo à durabilidade do banho premium. Perfeito para revendedores exigentes e uso pessoal de alto padrão.\n\nFicha Técnica:\n- SKU: ${skuProd}\n- Proteção Antialérgica de Alta Performance\n- Acabamento Lapidado`,
-        tags: "semijoias, joias folheadas, atacado semijoias, luxo, acessorios femininos, chaveiros de luxo",
-        faq
-      });
+      const resultado = gerarConteudoMultiMarketplace(produto);
+      setSeoResult(resultado);
       setIsGeneratingSeo(false);
-    }, 1200);
+    }, 400);
   };
 
   // --- DADOS FINANCEIROS & DRE CALCULADO ---
@@ -434,7 +471,160 @@ const App = () => {
     };
   }, [financeiro, produtos]);
 
-  // --- EXPORTAÇÃO REAL DE DADOS ---
+  // --- CADASTRO EM MASSA POR PLANILHA ---
+  const COLUNAS_TEMPLATE = [
+    'SKU', 'Nome', 'Categoria', 'Subcategoria', 'Marca', 'Cor', 'Material',
+    'Custo Base (R$)', 'Peso Base (g)', 'Margem Alvo (%)', 'Estoque Inicial',
+    'Banho', 'Comprimento (cm)', 'Largura (cm)', 'Altura (cm)',
+    'Atributos (chave:valor; chave:valor)', 'Diferenciais (separados por ;)', 'Status'
+  ];
+
+  const handleDownloadTemplate = () => {
+    const exemplo = {
+      'SKU': '',
+      'Nome': 'Ex: Camiseta Oversized',
+      'Categoria': 'Vestuário',
+      'Subcategoria': 'Camisetas',
+      'Marca': 'Luary',
+      'Cor': 'Preto',
+      'Material': 'Algodão 100%',
+      'Custo Base (R$)': 25.5,
+      'Peso Base (g)': 200,
+      'Margem Alvo (%)': 40,
+      'Estoque Inicial': 10,
+      'Banho': '',
+      'Comprimento (cm)': 70,
+      'Largura (cm)': 50,
+      'Altura (cm)': 1,
+      'Atributos (chave:valor; chave:valor)': 'Tamanho:G; Tecido:Premium',
+      'Diferenciais (separados por ;)': 'Tecido 200g/m²; Costura reforçada',
+      'Status': 'Ativo'
+    };
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([exemplo], { header: COLUNAS_TEMPLATE }), 'Produtos');
+    XLSX.writeFile(wb, 'luary-shop-modelo-importacao.xlsx');
+  };
+
+  const handleFileSelected = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const wb = XLSX.read(evt.target.result, { type: 'binary' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const linhas = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+        if (linhas.length === 0) {
+          alert('A planilha está vazia.');
+          return;
+        }
+
+        const skusExistentes = new Set(produtos.map(p => (p.sku || '').toLowerCase()).filter(Boolean));
+        const skusNaPlanilha = new Set();
+
+        const preview = linhas.map((linha, idx) => {
+          const erros = [];
+          const nome = String(linha['Nome'] || '').trim();
+          if (!nome) erros.push('Nome é obrigatório');
+
+          let sku = String(linha['SKU'] || '').trim();
+          if (!sku) sku = `LUARY-${Date.now().toString(36).toUpperCase()}-${idx}`;
+          if (skusExistentes.has(sku.toLowerCase())) erros.push(`SKU "${sku}" já existe no catálogo`);
+          if (skusNaPlanilha.has(sku.toLowerCase())) erros.push(`SKU "${sku}" duplicado na própria planilha`);
+          skusNaPlanilha.add(sku.toLowerCase());
+
+          const custoBase = Number(linha['Custo Base (R$)']) || 0;
+          const pesoBase = Number(linha['Peso Base (g)']) || 0;
+          const margemAlvo = Number(linha['Margem Alvo (%)']) || 0;
+          const estoqueInicial = Number(linha['Estoque Inicial']) || 0;
+
+          const banhoNome = String(linha['Banho'] || '').trim();
+          const banhoEncontrado = banhoNome ? banhos.find(b => b.nome.toLowerCase() === banhoNome.toLowerCase()) : null;
+          if (banhoNome && !banhoEncontrado) erros.push(`Banho "${banhoNome}" não encontrado (cadastre antes ou deixe em branco)`);
+
+          const atributos = String(linha['Atributos (chave:valor; chave:valor)'] || '')
+            .split(';').map(par => {
+              const [chave, valor] = par.split(':').map(s => (s || '').trim());
+              return chave && valor ? { chave, valor } : null;
+            }).filter(Boolean);
+
+          const diferenciais = String(linha['Diferenciais (separados por ;)'] || '')
+            .split(';').map(s => s.trim()).filter(Boolean);
+
+          return {
+            linhaOriginal: idx + 2, // +2 = considerando cabeçalho e index 0
+            valido: erros.length === 0,
+            erros,
+            produto: {
+              id: crypto.randomUUID(),
+              sku,
+              nome,
+              categoria: String(linha['Categoria'] || '').trim(),
+              subcategoria: String(linha['Subcategoria'] || '').trim(),
+              marca: String(linha['Marca'] || '').trim(),
+              cor: String(linha['Cor'] || '').trim(),
+              material: String(linha['Material'] || '').trim(),
+              custoBase,
+              pesoBase,
+              margemAlvo,
+              tipoMargem: 'perc',
+              saldo: estoqueInicial,
+              banhoId: banhoEncontrado?.id || '',
+              medidas: {
+                comprimento: linha['Comprimento (cm)'] || '',
+                largura: linha['Largura (cm)'] || '',
+                altura: linha['Altura (cm)'] || ''
+              },
+              atributos,
+              diferenciais,
+              status: String(linha['Status'] || 'Ativo').trim() || 'Ativo',
+              insumosIds: []
+            }
+          };
+        });
+
+        setImportPreview(preview);
+      } catch (err) {
+        console.error('Erro ao ler planilha:', err);
+        alert('Não foi possível ler essa planilha. Confira se é um arquivo .xlsx, .xls ou .csv válido.');
+      }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = ''; // permite selecionar o mesmo arquivo de novo depois
+  };
+
+  const confirmarImportacao = async () => {
+    if (!importPreview) return;
+    const validos = importPreview.filter(l => l.valido);
+    if (validos.length === 0) { alert('Nenhuma linha válida para importar.'); return; }
+
+    setIsImporting(true);
+    try {
+      const updates = {};
+      validos.forEach(({ produto }) => {
+        updates[`${appId}/${appId}_produtos/${produto.id}`] = produto;
+      });
+      await update(ref(db), updates);
+
+      for (const { produto } of validos) {
+        if (produto.saldo > 0) {
+          await registrarMovimentacaoEstoque(produto.id, 'Entrada', produto.saldo, 'Importação em Massa por Planilha');
+        }
+      }
+
+      alert(`${validos.length} produto(s) importado(s) com sucesso!`);
+      setImportPreview(null);
+    } catch (err) {
+      console.error('Erro na importação em massa:', err);
+      alert('Falha ao gravar os produtos no banco. Veja o console para detalhes.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+
   const handleExport = (tipoFormat) => {
     const dataStr = new Date().toISOString().split('T')[0];
 
@@ -869,6 +1059,7 @@ const App = () => {
                     const resMargem = calcularPrecificacaoAvancada(currentProduct, mkt, 'margem');
                     const resCompetitivo = calcularPrecificacaoAvancada(currentProduct, mkt, 'competitivo');
                     const resPsicologico = calcularPrecificacaoAvancada(currentProduct, mkt, 'psicologico');
+                    const resBreakeven = calcularPrecificacaoAvancada(currentProduct, mkt, 'breakeven');
                     
                     if (!resMargem) return null;
 
@@ -895,6 +1086,9 @@ const App = () => {
                           <div className="flex justify-between"><span className="text-slate-400 font-bold">PREÇO PSICOLÓGICO:</span><span className="font-black text-indigo-600">R$ {formatBRL(resPsicologico.precoVenda)}</span></div>
                           <div className="flex justify-between"><span className="text-slate-400 font-bold">MÍNIMO COMPETITIVO:</span><span className="font-black text-slate-600">R$ {formatBRL(resCompetitivo.precoVenda)}</span></div>
                           <div className="flex justify-between border-t border-dashed border-slate-200 pt-2"><span className="text-slate-500 font-black">LUCRO ESTIMADO:</span><span className="font-black text-emerald-600">R$ {formatBRL(resMargem.lucro)}</span></div>
+                          {resBreakeven && (
+                            <div className="flex justify-between"><span className="text-rose-400 font-bold">PREÇO DE EQUILÍBRIO (0% margem):</span><span className="font-black text-rose-500">R$ {formatBRL(resBreakeven.precoVenda)}</span></div>
+                          )}
                         </div>
                       </div>
                     );
@@ -910,17 +1104,32 @@ const App = () => {
         {/* TAB 2: MÓDULO PRODUTOS */}
         {activeTab === 'produtos' && (
           <div className="max-w-7xl mx-auto space-y-6 animate-in slide-in-from-bottom-4">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center flex-wrap gap-4">
               <div>
                 <h2 className="text-4xl font-black text-slate-800">Módulo de Produtos</h2>
-                <p className="text-slate-400 font-bold text-sm uppercase">Cadastre Semijoias, Chaveiros e Peças e gerencie seu CPV</p>
+                <p className="text-slate-400 font-bold text-sm uppercase">Cadastre produtos de qualquer categoria e gerencie seu CPV</p>
               </div>
-              <button 
-                onClick={() => { setModalType('produto'); setEditingItem(null); setImagePreview(''); setIsModalOpen(true); }}
-                className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg hover:scale-105 transition-all uppercase text-xs flex items-center gap-2"
-              >
-                <Plus size={16}/> Novo Produto
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDownloadTemplate}
+                  className="bg-white border border-slate-200 text-slate-500 px-5 py-4 rounded-2xl font-black hover:border-slate-300 transition-all uppercase text-[10px] flex items-center gap-2"
+                >
+                  <FileText size={14}/> Baixar Modelo
+                </button>
+                <button
+                  onClick={() => fileImportRef.current?.click()}
+                  className="bg-white border border-slate-200 text-indigo-600 px-5 py-4 rounded-2xl font-black hover:border-indigo-300 transition-all uppercase text-[10px] flex items-center gap-2"
+                >
+                  <Database size={14}/> Importar Planilha
+                </button>
+                <input ref={fileImportRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFileSelected} className="hidden" />
+                <button 
+                  onClick={() => { setModalType('produto'); setEditingItem(null); setImagePreview(''); setAtributosForm([{ chave: '', valor: '' }]); setIsModalOpen(true); }}
+                  className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg hover:scale-105 transition-all uppercase text-xs flex items-center gap-2"
+                >
+                  <Plus size={16}/> Novo Produto
+                </button>
+              </div>
             </div>
 
             {/* TABELA DE PRODUTOS COMPLETA */}
@@ -948,6 +1157,17 @@ const App = () => {
                         <td className="p-6">
                           <div className="font-black text-slate-800 text-base">{prod.nome}</div>
                           <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">SKU: {prod.sku} | Banho: {banhoItem?.nome || 'Nenhum'}</div>
+                          {(prod.marca || prod.cor || (prod.atributos && prod.atributos.length > 0)) && (
+                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                              {prod.marca && <span className="text-[9px] font-black uppercase bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{prod.marca}</span>}
+                              {prod.cor && <span className="text-[9px] font-black uppercase bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{prod.cor}</span>}
+                              {prod.atributos && prod.atributos.length > 0 && (
+                                <span className="text-[9px] font-black uppercase bg-indigo-50 text-indigo-500 px-2 py-0.5 rounded-full">
+                                  {prod.atributos.length} atributo{prod.atributos.length > 1 ? 's' : ''}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td className="p-6">
                           <div className="text-xs font-bold text-slate-600">{prod.categoria || 'Sem Categoria'}</div>
@@ -960,7 +1180,7 @@ const App = () => {
                         </td>
                         <td className="p-6">
                           <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => { setModalType('produto'); setEditingItem(prod); setImagePreview(prod.foto || ''); setIsModalOpen(true); }} className="p-3 bg-slate-100 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all"><Edit2 size={14}/></button>
+                            <button onClick={() => { setModalType('produto'); setEditingItem(prod); setImagePreview(prod.foto || ''); setAtributosForm(prod.atributos && prod.atributos.length ? prod.atributos : [{ chave: '', valor: '' }]); setIsModalOpen(true); }} className="p-3 bg-slate-100 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all"><Edit2 size={14}/></button>
                             <button onClick={() => handleDelete('produtos', prod.id, `o produto "${prod.nome}"`)} className="p-3 bg-slate-100 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all"><Trash2 size={14}/></button>
                           </div>
                         </td>
@@ -1308,11 +1528,20 @@ const App = () => {
         {activeTab === 'seo' && (
           <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-bottom-4">
             <div className="bg-white p-8 rounded-[2.5rem] border shadow-sm space-y-6">
-              <div className="flex items-center gap-2 text-indigo-600">
-                <Sparkles size={24}/>
-                <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Gerador de SEO Premium</h3>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-2 text-indigo-600">
+                  <Sparkles size={24}/>
+                  <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Gerador de SEO Premium</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExportarConteudoMassa}
+                  className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-wider hover:bg-indigo-700 transition-colors"
+                >
+                  <FileText size={14}/> Exportar Tudo (CSV — {produtos.length} produtos × 4 canais)
+                </button>
               </div>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-relaxed">Gere títulos magnéticos, FAQ estruturado e descrições otimizadas para ranqueamento na Shopee, TikTok Shop e Google.</p>
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-relaxed">Gera título, descrição e tags otimizados para cada marketplace — respeitando o limite de caracteres e as regras reais de cada canal, com base nos atributos reais do produto.</p>
               
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -1321,7 +1550,7 @@ const App = () => {
                     className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all"
                     onChange={(e) => {
                       const p = produtos.find(item => item.id === e.target.value);
-                      if (p) handleGerarSEO(p.nome, p.sku);
+                      if (p) handleGerarSEO(p);
                     }}
                   >
                     <option value="">Selecione...</option>
@@ -1337,38 +1566,38 @@ const App = () => {
                 )}
 
                 {seoResult && !isGeneratingSeo && (
-                  <div className="space-y-6 animate-in zoom-in-95 duration-300">
-                    <div className="space-y-3">
-                      <p className="text-[10px] font-black text-slate-400 uppercase">Títulos Propostos por Canal</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                          <span className="font-black text-[9px] text-amber-600 uppercase">Shopee</span>
-                          <p className="font-bold text-slate-700 mt-1">{seoResult.titulos.shopee}</p>
-                        </div>
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                          <span className="font-black text-[9px] text-blue-500 uppercase">Mercado Livre</span>
-                          <p className="font-bold text-slate-700 mt-1">{seoResult.titulos.mercadoLivre}</p>
-                        </div>
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                          <span className="font-black text-[9px] text-emerald-600 uppercase">TikTok Shop</span>
-                          <p className="font-bold text-slate-700 mt-1">{seoResult.titulos.tiktok}</p>
-                        </div>
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                          <span className="font-black text-[9px] text-slate-500 uppercase">Amazon</span>
-                          <p className="font-bold text-slate-700 mt-1">{seoResult.titulos.amazon}</p>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="space-y-4 animate-in zoom-in-95 duration-300">
+                    {MARKETPLACES_LIST.map(cfg => {
+                      const r = seoResult[cfg.id];
+                      if (!r) return null;
+                      const corBadge = r.conformidade.tituloOk ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50';
+                      return (
+                        <div key={cfg.id} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="font-black text-[10px] uppercase tracking-wider" style={{ color: cfg.corPrimaria === '#FFE600' ? '#b8960a' : cfg.corPrimaria }}>{cfg.nome}</span>
+                            <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full ${corBadge}`}>
+                              {r.conformidade.tituloLen}/{r.conformidade.tituloMax} caracteres {r.conformidade.tituloOk ? '✓' : '⚠️'}
+                            </span>
+                          </div>
 
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-black text-slate-400 uppercase">Descrição Otimizada</p>
-                      <textarea readOnly value={seoResult.descricao} rows={5} className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none text-xs text-slate-700" />
-                    </div>
+                          <div className="flex items-center gap-2">
+                            <p className="flex-1 font-bold text-slate-700 text-xs bg-white p-3 rounded-xl border">{r.titulo}</p>
+                            <button type="button" onClick={() => navigator.clipboard.writeText(r.titulo)} className="text-[9px] font-black uppercase text-indigo-600 bg-indigo-50 px-3 py-3 rounded-xl hover:bg-indigo-100 transition-colors shrink-0">Copiar</button>
+                          </div>
 
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-black text-slate-400 uppercase">Tags Relevantes</p>
-                      <input readOnly value={seoResult.tags} className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none text-xs text-indigo-600" />
-                    </div>
+                          <div className="flex items-start gap-2">
+                            <pre className="flex-1 whitespace-pre-wrap font-sans text-[11px] text-slate-600 bg-white p-3 rounded-xl border max-h-40 overflow-y-auto custom-scrollbar">{r.descricao}</pre>
+                            <button type="button" onClick={() => navigator.clipboard.writeText(r.descricao)} className="text-[9px] font-black uppercase text-indigo-600 bg-indigo-50 px-3 py-3 rounded-xl hover:bg-indigo-100 transition-colors shrink-0">Copiar</button>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5">
+                            {r.tags.map((t, i) => (
+                              <span key={i} className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full">{t}</span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1560,6 +1789,71 @@ const App = () => {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Marca</label>
+                      <input name="marca" placeholder="Ex: Luary" defaultValue={editingItem?.marca} className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Cor</label>
+                      <input name="cor" placeholder="Ex: Dourado, Preto" defaultValue={editingItem?.cor} className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Medidas (cm) — opcional, ajuda no frete e no anúncio</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      <input name="medidaComprimento" type="number" step="0.1" placeholder="Compr." defaultValue={editingItem?.medidas?.comprimento} className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" />
+                      <input name="medidaLargura" type="number" step="0.1" placeholder="Larg." defaultValue={editingItem?.medidas?.largura} className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" />
+                      <input name="medidaAltura" type="number" step="0.1" placeholder="Alt." defaultValue={editingItem?.medidas?.altura} className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 border border-slate-200 rounded-[2rem] p-6 bg-white shadow-inner">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="bg-emerald-100 text-emerald-600 p-2 rounded-xl"><Layers size={18}/></div>
+                      <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight">Atributos Personalizados</h4>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase ml-auto">Tamanho, voltagem, tecido, capacidade...</span>
+                    </div>
+                    <div className="space-y-2">
+                      {atributosForm.map((attr, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            placeholder="Atributo (ex: Tamanho)"
+                            value={attr.chave}
+                            onChange={(e) => {
+                              const novo = [...atributosForm];
+                              novo[idx] = { ...novo[idx], chave: e.target.value };
+                              setAtributosForm(novo);
+                            }}
+                            className="flex-1 bg-slate-50 p-3 rounded-xl font-bold border-none text-xs"
+                          />
+                          <input
+                            placeholder="Valor (ex: G)"
+                            value={attr.valor}
+                            onChange={(e) => {
+                              const novo = [...atributosForm];
+                              novo[idx] = { ...novo[idx], valor: e.target.value };
+                              setAtributosForm(novo);
+                            }}
+                            className="flex-1 bg-slate-50 p-3 rounded-xl font-bold border-none text-xs"
+                          />
+                          <button type="button" onClick={() => setAtributosForm(atributosForm.filter((_, i) => i !== idx))} className="text-rose-500 p-2 hover:bg-rose-50 rounded-lg transition-colors shrink-0">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button type="button" onClick={() => setAtributosForm([...atributosForm, { chave: '', valor: '' }])} className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 px-4 py-2 rounded-xl hover:bg-indigo-100 transition-colors">
+                      + Adicionar Atributo
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Diferenciais (um por linha) — usado no gerador de conteúdo</label>
+                    <textarea name="diferenciais" rows={3} placeholder={"Ex: Antialérgico\nGarantia de 90 dias"} defaultValue={(editingItem?.diferenciais || []).join('\n')} className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none text-xs" />
+                  </div>
+
                   {!editingItem && (
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Estoque Inicial</label>
@@ -1568,9 +1862,9 @@ const App = () => {
                   )}
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Tipo de Banho Aplicado</label>
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Beneficiamento / Acabamento Aplicado (opcional)</label>
                     <select name="banhoId" defaultValue={editingItem?.banhoId} className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none outline-none">
-                      <option value="">Selecione o Banho...</option>
+                      <option value="">Nenhum / Não se aplica...</option>
                       {banhos.map(b => <option key={b.id} value={b.id}>{b.nome}</option>)}
                     </select>
                   </div>
@@ -1816,6 +2110,59 @@ const App = () => {
                 )}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE REVISÃO DA IMPORTAÇÃO EM MASSA */}
+      {importPreview && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="p-8 border-b border-slate-100">
+              <h3 className="text-2xl font-black text-slate-800">Revisar Importação</h3>
+              <p className="text-slate-400 font-bold text-xs uppercase mt-1">
+                {importPreview.filter(l => l.valido).length} linha(s) prontas para importar · {importPreview.filter(l => !l.valido).length} com erro (serão ignoradas)
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-2 custom-scrollbar">
+              {importPreview.map((linha, i) => (
+                <div key={i} className={`p-4 rounded-2xl border flex items-start gap-3 ${linha.valido ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
+                  <span className={`text-lg ${linha.valido ? 'text-emerald-500' : 'text-rose-500'}`}>{linha.valido ? '✓' : '✕'}</span>
+                  <div className="flex-1">
+                    <p className="text-xs font-black text-slate-700">Linha {linha.linhaOriginal}: {linha.produto.nome || '(sem nome)'}</p>
+                    {linha.produto.sku && <p className="text-[10px] text-slate-400 font-bold">SKU: {linha.produto.sku}</p>}
+                    {!linha.valido && (
+                      <ul className="mt-1 space-y-0.5">
+                        {linha.erros.map((erro, j) => (
+                          <li key={j} className="text-[11px] text-rose-500 font-bold">• {erro}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-6 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setImportPreview(null)}
+                className="px-6 py-4 rounded-2xl font-black text-xs uppercase text-slate-500 hover:bg-slate-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarImportacao}
+                disabled={isImporting || importPreview.filter(l => l.valido).length === 0}
+                className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg hover:scale-105 transition-all uppercase text-xs disabled:opacity-40 disabled:hover:scale-100 flex items-center gap-2"
+              >
+                {isImporting ? (
+                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Importando...</>
+                ) : (
+                  <>Importar {importPreview.filter(l => l.valido).length} Produto(s)</>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
