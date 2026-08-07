@@ -25,6 +25,96 @@ const formatBRL = (valor) =>
 const formatNumBR = (valor, casas = 2) =>
   Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
 
+// ======================================================================
+// Simulação visual de como o anúncio aparece na grade de busca de cada
+// marketplace — layout inspirado no padrão real de cada plataforma.
+// Os 2 cards cinzas ao lado são "concorrentes" fictícios, só pra dar
+// contexto de grade (não são dados reais de nenhum concorrente).
+// ======================================================================
+const PlaceholderCard = ({ estilo }) => (
+  <div className={`bg-slate-100 rounded-xl overflow-hidden ${estilo}`}>
+    <div className="aspect-square bg-slate-200"></div>
+    <div className="p-2 space-y-1.5">
+      <div className="h-2 bg-slate-200 rounded w-full"></div>
+      <div className="h-2 bg-slate-200 rounded w-2/3"></div>
+      <div className="h-3 bg-slate-200 rounded w-1/2 mt-2"></div>
+    </div>
+  </div>
+);
+
+const MarketplaceGridPreview = ({ cfg, produto, titulo, preco }) => {
+  const foto = produto?.foto || '';
+  const precoFmt = (Number(preco) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+  const renderCardReal = () => {
+    switch (cfg.id) {
+      case 'mercadoLivre':
+        return (
+          <div className="bg-white rounded-xl overflow-hidden border-2 border-yellow-400 shadow-lg">
+            <div className="aspect-square bg-slate-50 flex items-center justify-center overflow-hidden">
+              {foto ? <img src={foto} className="w-full h-full object-cover" /> : <ImageIcon className="text-slate-300" size={32}/>}
+            </div>
+            <div className="p-2.5">
+              <p className="text-[11px] text-slate-700 leading-snug line-clamp-2">{titulo}</p>
+              <p className="text-lg font-normal text-slate-800 mt-1">R$ {precoFmt}</p>
+              <p className="text-[10px] text-emerald-600 font-bold">Frete grátis</p>
+            </div>
+          </div>
+        );
+      case 'shopee':
+        return (
+          <div className="bg-white rounded-xl overflow-hidden border-2 border-orange-500 shadow-lg">
+            <div className="aspect-square bg-slate-50 flex items-center justify-center overflow-hidden relative">
+              {foto ? <img src={foto} className="w-full h-full object-cover" /> : <ImageIcon className="text-slate-300" size={32}/>}
+              <span className="absolute top-1 left-1 bg-orange-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded">-10%</span>
+            </div>
+            <div className="p-2.5">
+              <p className="text-[11px] text-slate-700 leading-snug line-clamp-2">{titulo}</p>
+              <p className="text-base font-bold text-orange-600 mt-1">R${precoFmt}</p>
+              <p className="text-[9px] text-slate-400">⭐ 4.8 · 120 vendidos</p>
+            </div>
+          </div>
+        );
+      case 'amazon':
+        return (
+          <div className="bg-white rounded-xl overflow-hidden border-2 border-slate-300 shadow-lg">
+            <div className="aspect-square bg-slate-50 flex items-center justify-center overflow-hidden">
+              {foto ? <img src={foto} className="w-full h-full object-cover" /> : <ImageIcon className="text-slate-300" size={32}/>}
+            </div>
+            <div className="p-2.5">
+              <p className="text-[11px] text-blue-700 leading-snug line-clamp-2 hover:underline">{titulo}</p>
+              <p className="text-[9px] text-slate-400 mt-1">★★★★☆ 234</p>
+              <p className="text-base font-bold text-slate-900 mt-1">R$ {precoFmt}</p>
+            </div>
+          </div>
+        );
+      case 'tiktokShop':
+        return (
+          <div className="bg-white rounded-xl overflow-hidden border-2 border-black shadow-lg">
+            <div className="aspect-[3/4] bg-slate-50 flex items-center justify-center overflow-hidden relative">
+              {foto ? <img src={foto} className="w-full h-full object-cover" /> : <ImageIcon className="text-slate-300" size={32}/>}
+              <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[8px] px-1.5 py-0.5 rounded-full">▶ Vídeo</span>
+            </div>
+            <div className="p-2.5">
+              <p className="text-[11px] text-slate-700 leading-snug line-clamp-2">{titulo}</p>
+              <p className="text-base font-bold text-slate-900 mt-1">R$ {precoFmt}</p>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-3 gap-2 max-w-xs">
+      <PlaceholderCard estilo="" />
+      {renderCardReal()}
+      <PlaceholderCard estilo="" />
+    </div>
+  );
+};
+
 const App = () => {
   // --- ESTADOS DE SESSÃO E CONEXÃO ---
   const [user, setUser] = useState(null);
@@ -54,6 +144,7 @@ const App = () => {
 
   // --- SUB-ESTADOS AUXILIARES (SIMULADORES, SEO & LIVE) ---
   const [seoResult, setSeoResult] = useState(null);
+  const [seoProdutoAtual, setSeoProdutoAtual] = useState(null);
   const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
   const [metaFaturamento, setMetaFaturamento] = useState(15000); // Meta mensal default
   const [liveProduct, setLiveProduct] = useState(null);
@@ -1550,7 +1641,7 @@ const App = () => {
                     className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none outline-none focus:ring-2 ring-indigo-500/20 transition-all"
                     onChange={(e) => {
                       const p = produtos.find(item => item.id === e.target.value);
-                      if (p) handleGerarSEO(p);
+                      if (p) { setSeoProdutoAtual(p); handleGerarSEO(p); }
                     }}
                   >
                     <option value="">Selecione...</option>
@@ -1595,6 +1686,27 @@ const App = () => {
                               <span key={i} className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full">{t}</span>
                             ))}
                           </div>
+
+                          <details>
+                            <summary className="text-[9px] font-black uppercase text-slate-400 cursor-pointer hover:text-indigo-600 transition-colors">👁️ Ver como fica no grid de busca</summary>
+                            <div className="mt-3">
+                              {(() => {
+                                const palavraChave = cfg.id === 'mercadoLivre' ? 'mercado' : cfg.id === 'tiktokShop' ? 'tiktok' : cfg.nome.toLowerCase();
+                                const canalReal = marketplaces.find(m => (m.nome || '').toLowerCase().includes(palavraChave));
+                                const precoCalc = (seoProdutoAtual && canalReal)
+                                  ? calcularPrecificacaoAvancada(seoProdutoAtual, canalReal, 'margem')?.precoVenda
+                                  : null;
+                                return (
+                                  <>
+                                    <MarketplaceGridPreview cfg={cfg} produto={seoProdutoAtual} titulo={r.titulo} preco={precoCalc || 0} />
+                                    {!canalReal && (
+                                      <p className="text-[9px] text-amber-500 font-bold mt-2">⚠️ Cadastre "{cfg.nome}" na aba Marketplaces para ver o preço real calculado aqui.</p>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          </details>
                         </div>
                       );
                     })}
